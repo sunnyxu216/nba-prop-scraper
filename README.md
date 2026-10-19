@@ -171,11 +171,15 @@ spm/reasoning.py    plain-English explanations
 spm/backtest.py     walk-forward backtest + calibration fit
 spm/props.py        props.csv storage
 spm/lineups.py      who's playing: rotations, absences, injury report
-spm/collector.py    free line collection (Action Network), change-only storage, grading
+spm/odds/           odds sources behind one interface (Offer + OddsSource + registry)
+  base.py           the interface; `source` and `licensed` decide what's usable commercially
+  action_network.py dev-only scraped feed (licensed = False)
+  the_odds_api.py   licensed feed for launch (needs ODDS_API_KEY)
+spm/collector.py    snapshots enabled sources (ODDS_SOURCES), change-only storage, grading
 spm/yearly.py       year-by-year walk-forward test and feature ablation
-spm/odds_api.py     optional The Odds API import
 collect_lines.py    one snapshot + grading (run hourly by Task Scheduler)
 spm/service.py      glue used by the API
+tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`
 static/             front end (HTML/CSS/JS, no build step)
 data/               props.csv, the download cache and trained models (data/models)
 ```

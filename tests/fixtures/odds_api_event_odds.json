@@ -1,0 +1,26 @@
+{
+  "_note": "Hand-built from The Odds API v4 docs (event-odds response shape); replace with a recorded response once a key exists.",
+  "id": "e1",
+  "bookmakers": [
+    {"key": "draftkings", "title": "DraftKings", "markets": [
+      {"key": "player_points", "outcomes": [
+        {"name": "Over", "description": "Jayson Tatum", "price": -115, "point": 26.5},
+        {"name": "Under", "description": "Jayson Tatum", "price": -105, "point": 26.5},
+        {"name": "Over", "description": "Cade Cunningham", "price": -110, "point": 25.5}
+      ]},
+      {"key": "player_threes", "outcomes": [
+        {"name": "Over", "description": "Jayson Tatum", "price": 120, "point": 3.5},
+        {"name": "Under", "description": "Jayson Tatum", "price": -150, "point": 3.5}
+      ]},
+      {"key": "player_double_double", "outcomes": [
+        {"name": "Yes", "description": "Jayson Tatum", "price": 150}
+      ]}
+    ]},
+    {"key": "fanduel", "title": "FanDuel", "markets": [
+      {"key": "player_points", "outcomes": [
+        {"name": "Over", "description": "Jayson Tatum", "price": -120, "point": 27.5},
+        {"name": "Under", "description": "Jayson Tatum", "price": -102, "point": 27.5}
+      ]}
+    ]}
+  ]
+}

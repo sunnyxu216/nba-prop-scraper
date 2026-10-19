@@ -1,0 +1,21 @@
+{
+ "games": [
+  {
+   "id": 295136,
+   "type": "reg",
+   "start_time": "2026-10-20T19:00:00.000Z",
+   "home_team_id": 170,
+   "away_team_id": 164,
+   "teams": [
+    {
+     "id": 164,
+     "abbr": "BOS"
+    },
+    {
+     "id": 170,
+     "abbr": "DET"
+    }
+   ]
+  }
+ ]
+}

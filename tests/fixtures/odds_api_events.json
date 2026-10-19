@@ -1,0 +1,6 @@
+[
+  {"id": "e1", "sport_key": "basketball_nba", "commence_time": "2026-10-20T23:30:00Z",
+   "home_team": "Detroit Pistons", "away_team": "Boston Celtics"},
+  {"id": "e_far", "sport_key": "basketball_nba", "commence_time": "2030-01-01T00:00:00Z",
+   "home_team": "Utah Jazz", "away_team": "Phoenix Suns"}
+]

@@ -16,7 +16,7 @@ import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from spm import advanced, backtest, collector, data, ev, features, ml, model, odds_api, props, service, yearly
+from spm import advanced, backtest, collector, data, ev, features, ml, model, odds, props, service, yearly
 
 STATIC = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))), "static")
 
@@ -194,7 +194,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {
                 "status": STATE["status"], "error": STATE["error"], "log": STATE["log"],
                 "meta": ds.meta if ds else None,
-                "odds_api": odds_api.enabled(),
+                "odds_sources": [s.name for s in odds.enabled_sources()],
+                "odds_api": any(s.name == "the_odds_api" for s in odds.enabled_sources()),
                 "backtest": {"status": STATE["bt_status"], "progress": STATE["bt_progress"],
                              "error": STATE["bt_error"]},
                 "model": STATE["engine"].mode if STATE["engine"] else None,
@@ -250,7 +251,7 @@ class Handler(BaseHTTPRequestHandler):
             summary = collector.snapshot(ds, log=log)
             fresh = lines_to_props(collector.latest_rows())
             if fresh:
-                props.remove_source("odds_api", "action_network", "example")
+                props.remove_source(*odds.registered(), "odds_api", "example")
                 props.save(props.load() + fresh)
             return self._send(200, {"imported": len(fresh), "notes": summary["notes"]})
 
