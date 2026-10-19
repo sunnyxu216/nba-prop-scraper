@@ -1,0 +1,5 @@
+# Normalize line endings in the repo; check out scripts with the endings their shell needs.
+* text=auto
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ico binary

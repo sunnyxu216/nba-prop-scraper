@@ -1,0 +1,16 @@
+# Python / tooling
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data: downloads, collected lines, trained models, logs (regenerable or private)
+data/
+
+# Secrets and local config
+.env
+config.json
+
+# Build output
+NBA Prop Model.exe
+build/

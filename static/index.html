@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NBA Prop Model</title>
+  <link rel="icon" href="/icon.ico">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand"><span class="dot"></span>NBA Prop Model <span class="season" id="season-tag"></span></div>
+      <nav class="tabs" id="tabs">
+        <button data-view="props" class="active">Props</button>
+        <button data-view="projections">Projections</button>
+        <button data-view="model">Model</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Loading -->
+    <section id="loading" class="card loading">
+      <div class="spinner"></div>
+      <div>
+        <h2>Loading NBA data</h2>
+        <p class="muted" id="loading-msg">Downloading game logs and rosters from stats.nba.com…</p>
+      </div>
+    </section>
+
+    <!-- Props -->
+    <section id="view-props" class="view" hidden>
+      <div class="tiles" id="tiles"></div>
+
+      <div class="notice" id="example-notice" hidden>
+        <span>The board is showing <b>example lines</b> (last-season averages at −110), not real sportsbook lines.
+          Add your book's lines to get real EV.</span>
+        <button class="link" id="clear-examples">Clear examples</button>
+      </div>
+
+      <div class="toolbar">
+        <input type="search" id="prop-search" placeholder="Search player">
+        <select id="prop-stat"><option value="">All stats</option></select>
+        <select id="prop-decision">
+          <option value="">All decisions</option>
+          <option value="bets">Bets only</option>
+          <option value="OVER">Overs</option>
+          <option value="UNDER">Unders</option>
+          <option value="PASS">Passes</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="toggle-settings">Settings</button>
+        <button class="btn ghost" id="import-odds">Import lines</button>
+        <button class="btn primary" id="open-add">+ Add prop</button>
+      </div>
+
+      <div class="card settings" id="settings" hidden>
+        <label>Min EV to bet <span><input type="number" id="set-ev" step="0.5" min="0"> %</span></label>
+        <label>Market blend <span><input type="number" id="set-blend" step="5" min="0" max="100"> %</span></label>
+        <label>Bankroll <span>$ <input type="number" id="set-bankroll" step="100" min="0"></span></label>
+        <label>Kelly fraction <span><input type="number" id="set-kelly" step="0.05" min="0" max="1"></span></label>
+        <div class="books-setting"><span>My books</span><div id="book-filter" class="book-filter"></div></div>
+        <p class="muted small">Market blend mixes the book's no-vig probability into the model's. Higher values are more conservative.
+          Stakes use fractional Kelly, capped at 3% of bankroll.</p>
+      </div>
+
+      <div class="card table-card">
+        <table class="table" id="props-table">
+          <thead>
+            <tr>
+              <th>Player</th><th>Prop</th><th class="num">Odds O / U</th><th class="num">Proj</th>
+              <th class="num">Over %</th><th class="num">Best EV</th><th>Decision</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty" id="props-empty" hidden>No props yet. Add a line to get a prediction.</div>
+      </div>
+    </section>
+
+    <!-- Projections -->
+    <section id="view-projections" class="view" hidden>
+      <div class="section-head">
+        <div>
+          <h2 id="proj-title">Season projections</h2>
+          <p class="muted">Per-game projections for every rostered player, before matchup adjustments. Click a player for the reasoning.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="proj-search" placeholder="Search player">
+        <select id="proj-team"><option value="">All teams</option></select>
+        <label class="check"><input type="checkbox" id="proj-moved"> Changed teams</label>
+      </div>
+      <div class="card table-card">
+        <table class="table sortable" id="proj-table">
+          <thead>
+            <tr>
+              <th data-k="name">Player</th><th data-k="team">Team</th>
+              <th class="num" data-k="min">MIN</th><th class="num" data-k="PTS">PTS</th>
+              <th class="num" data-k="REB">REB</th><th class="num" data-k="AST">AST</th>
+              <th class="num" data-k="3PM">3PM</th><th class="num" data-k="STL">STL</th>
+              <th class="num" data-k="BLK">BLK</th><th class="num" data-k="PRA">PRA</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Model -->
+    <section id="view-model" class="view" hidden>
+      <div class="grid2">
+        <div class="card">
+          <h3>Data</h3>
+          <div id="data-status"></div>
+          <button class="btn ghost" id="refresh-data">Refresh data</button>
+        </div>
+        <div class="card">
+          <h3>How it works</h3>
+          <ol class="method">
+            <li><b>Projection.</b> A gradient-boosted model per stat, trained on every game since 2015-16. It learns from recent and long-run form, minutes, rest, schedule, experience, time with team, the opponent's defense as of that date, and shot-zone and play-type matchups. Until it's trained, a hand-built formula model is used instead.</li>
+            <li><b>No peeking.</b> Every training row uses only what was known before tip-off, and the most recent season is held out and scored once.</li>
+            <li><b>Distribution.</b> Negative binomial around the projection using the player's own game-to-game spread, widened for new teams and early-season uncertainty.</li>
+            <li><b>Calibration.</b> Over/under probabilities are recalibrated per stat on a validation season, so a stated 60% hits about 60% of the time.</li>
+            <li><b>Line shopping.</b> Every book's line and price is evaluated; the best one among your books is the recommendation.</li>
+            <li><b>EV.</b> Blend model and no-vig market probabilities, compare to the payout, bet only above the EV bar (higher for low-confidence spots).</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="card" id="ml-card">
+        <div class="section-head">
+          <div>
+            <h3>Machine-learning model</h3>
+            <p class="muted small" id="ml-desc">Gradient-boosted trees trained on every game since 2015-16, one model per stat.</p>
+          </div>
+          <button class="btn ghost" id="train-model">Train model</button>
+        </div>
+        <div id="ml-body"><p class="muted">Not trained yet. Training downloads shot-zone and play-type history the first time and takes a few minutes.</p></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h3>Year-by-year test</h3>
+            <p class="muted small">Retrains before each season using only earlier seasons, then predicts that season, as if the model had been used live every year since 2018-19.</p>
+          </div>
+          <button class="btn ghost" id="run-yearly">Run year-by-year test</button>
+        </div>
+        <div id="yearly-body"><p class="muted">Not run yet. Takes about 15 minutes.</p></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h3>Line collection</h3>
+            <p class="muted small">Every few hours while the app runs, every available prop line is saved, then graded against the box score once the game is played. This builds the real-line history needed to test for profit.</p>
+          </div>
+          <button class="btn ghost" id="snapshot-lines">Snapshot now</button>
+        </div>
+        <div id="lines-body"><p class="muted">Loading…</p></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h3>Formula model backtest</h3>
+            <p class="muted small" id="bt-desc">Walk-forward test on last season: every prediction uses only games played before that date.</p>
+          </div>
+          <button class="btn ghost" id="run-backtest">Run backtest</button>
+        </div>
+        <div id="bt-body"><p class="muted">No backtest yet.</p></div>
+      </div>
+
+      <p class="disclaimer">For research and entertainment. Projections are estimates from public box-score data and do not know about
+        injuries, lineup news or minutes restrictions. Check news before betting, never bet more than you can afford to lose,
+        and if gambling stops being fun call 1-800-GAMBLER.</p>
+    </section>
+  </main>
+
+  <!-- Add prop dialog -->
+  <dialog id="add-dialog">
+    <form method="dialog" id="add-form">
+      <h3>Add a prop line</h3>
+      <div class="form-grid">
+        <label class="span2">Player <input name="player" list="player-list" required autocomplete="off"></label>
+        <label>Stat <select name="stat" id="add-stat"></select></label>
+        <label>Line <input name="line" type="number" step="0.5" required></label>
+        <label>Over odds <input name="over_odds" type="number" value="-110" required></label>
+        <label>Under odds <input name="under_odds" type="number" value="-110" required></label>
+        <label>Opponent <select name="opponent" id="add-opp"><option value="">Unknown</option></select></label>
+        <label>Venue
+          <select name="home"><option value="">Unknown</option><option value="home">Home</option><option value="away">Away</option></select>
+        </label>
+        <label>Game date <input name="game_date" type="date"></label>
+        <label>Book <input name="book" placeholder="DraftKings"></label>
+        <label class="check span2"><input type="checkbox" name="b2b"> Second night of a back-to-back</label>
+      </div>
+      <div class="preview" id="add-preview"></div>
+      <p class="error" id="add-error"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="add-cancel">Cancel</button>
+        <button type="submit" class="btn primary">Save prop</button>
+      </div>
+    </form>
+  </dialog>
+  <datalist id="player-list"></datalist>
+
+  <!-- Player dialog -->
+  <dialog id="player-dialog" class="wide">
+    <div id="player-body"></div>
+    <div class="actions"><button class="btn ghost" id="player-close">Close</button></div>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>
