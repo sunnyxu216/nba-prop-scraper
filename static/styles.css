@@ -251,3 +251,6 @@ details.stat-why summary { cursor: pointer; font-weight: 550; }
 .imp-row { display: grid; grid-template-columns: 170px 1fr 44px; gap: 8px; align-items: center; font-size: 12px; }
 .imp-bar { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .imp-bar div { height: 100%; background: var(--accent); border-radius: 999px; }
+
+.notice.caution { background: var(--under-soft); border-color: transparent; }
+.settings .span-all { grid-column: 1 / -1; flex-direction: row; color: var(--text); font-size: 13px; }

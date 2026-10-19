@@ -154,6 +154,19 @@ def record(conn, offers):
     return appended
 
 
+def current_lines(conn, max_age_hours=6):
+    """Open lines for upcoming games, as last seen by the collector (newest prices)."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            select oc.source, oc.player_name, oc.team, oc.market, oc.book, oc.line::float, oc.over_odds,
+                   oc.under_odds, e.home_team, e.away_team, e.start_time, oc.last_seen
+            from offers_current oc join events e on e.id = oc.event_id
+            where e.start_time > now() and oc.last_seen > now() - make_interval(hours => %s)
+            order by e.start_time, oc.player_name, oc.market, oc.book""", (max_age_hours,))
+        cols = [d.name for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
 def safe_schema_name(name):
     if not re.fullmatch(r"[a-z_][a-z0-9_]{0,40}", name):
         raise ValueError(f"bad schema name {name!r}")

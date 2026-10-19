@@ -5,6 +5,7 @@
 """
 
 import argparse
+import datetime as dt
 import json
 import mimetypes
 import os
@@ -113,8 +114,30 @@ def lines_to_props(rows):
     return out
 
 
+def cloud_lines_to_props(ds, rows):
+    """Supabase offers_current rows -> props (resolving each player's team and the matchup)."""
+    out = []
+    for r in rows:
+        p = ds.find_player(r["player_name"])
+        team = (p.team if p else None) or r["team"]
+        home = team == r["home_team"] if team in (r["home_team"], r["away_team"]) else None
+        try:
+            out.append(props.clean({
+                "player": p.name if p else r["player_name"], "stat": r["market"], "line": r["line"],
+                "over_odds": r["over_odds"], "under_odds": r["under_odds"],
+                "opponent": (r["away_team"] if home else r["home_team"]) if home is not None else "",
+                "home": home, "book": r["book"], "source": r["source"],
+                "game_date": (r["start_time"] - dt.timedelta(hours=5)).date().isoformat(),  # US Eastern date
+            }))
+        except ValueError:
+            continue
+    return out
+
+
 def settings_from(q):
     s = {}
+    if "bias_adjust" in q:
+        s["bias_adjust"] = q["bias_adjust"][0].lower() in ("1", "true", "yes", "on")
     if q.get("books"):
         s["books"] = [b for b in q["books"][0].split(",") if b]
     for key, cast in (("ev_threshold", float), ("market_blend", float), ("bankroll", float), ("kelly_mult", float)):
@@ -247,6 +270,19 @@ class Handler(BaseHTTPRequestHandler):
                 props.remove_source(src)
             return self._send(200, {"ok": True})
 
+        if route == ("POST", "odds-import") and os.environ.get("DATABASE_URL"):
+            from spm.store import pg
+            with pg.connect() as conn:
+                rows = pg.current_lines(conn)
+            fresh = cloud_lines_to_props(ds, rows)
+            if fresh:
+                props.remove_source(*odds.registered(), "odds_api", "example")
+                props.save(props.load() + fresh)
+            newest = max((r["last_seen"] for r in rows), default=None)
+            note = (f"Supabase: {len(fresh)} lines for upcoming games (collected "
+                    f"{newest:%b %d %H:%M} UTC)") if newest else "Supabase: no open lines for upcoming games"
+            return self._send(200, {"imported": len(fresh), "notes": [note]})
+
         if route == ("POST", "odds-import"):
             summary = collector.snapshot(ds, log=log)
             fresh = lines_to_props(collector.latest_rows())
@@ -301,6 +337,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    from spm import envfile
+    envfile.load()  # DATABASE_URL etc. from .env
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--host", default="127.0.0.1")

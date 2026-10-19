@@ -17,7 +17,7 @@ const state = {
 };
 
 function loadSettings() {
-  const d = { ev_threshold: 0.03, market_blend: 0.35, bankroll: 1000, kelly_mult: 0.25, books: [] };
+  const d = { ev_threshold: 0.03, market_blend: 0.35, bankroll: 1000, kelly_mult: 0.25, books: [], bias_adjust: true };
   try { return { ...d, ...JSON.parse(localStorage.getItem("settings") || "{}") }; } catch { return d; }
 }
 function saveSettings() {
@@ -66,6 +66,7 @@ function fillSelects() {
   $("#set-blend").value = Math.round(state.settings.market_blend * 100);
   $("#set-bankroll").value = state.settings.bankroll;
   $("#set-kelly").value = state.settings.kelly_mult;
+  $("#set-bias").checked = state.settings.bias_adjust !== false;
 }
 
 function showView(v) {
@@ -122,9 +123,9 @@ function renderTiles() {
   const stake = bets.reduce((s, r) => s + r.ev.sides[r.ev.decision].stake, 0);
   const tiles = [
     ["Props analyzed", ok.length],
-    ["Recommended bets", bets.length],
-    ["Avg EV of bets", avgEv == null ? "–" : signedPct(avgEv)],
-    ["Suggested total stake", money(stake)],
+    ["Model picks (paper)", bets.length],
+    ["Avg model EV of picks", avgEv == null ? "–" : signedPct(avgEv)],
+    ["Paper stake if all were bet", money(stake)],
   ];
   $("#tiles").innerHTML = tiles.map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
   $("#example-notice").hidden = !state.props.some((r) => r.prop.source === "example");
@@ -159,7 +160,7 @@ function renderProps() {
       ? `<span class="badge PASS">PASS</span>`
       : `<span class="badge ${e.decision}">${e.decision} <span class="tier">· ${e.tier}</span></span>`;
     let html = `<tr class="row${open ? " open" : ""}" data-id="${r.id}">${head}
-      <td class="num"><b>${pr.mean.toFixed(1)}</b> <span class="${diff >= 0 ? "pos" : "neg"} small">${diff >= 0 ? "+" : ""}${diff.toFixed(1)}</span></td>
+      <td class="num" title="${pr.bias_shift ? `Raw model ${pr.raw_mean.toFixed(1)}, adjusted ${pr.bias_shift < 0 ? "+" : "-"}${Math.abs(pr.bias_shift).toFixed(1)} for tonight's model-vs-market gap` : "Model projection"}"><b>${pr.mean.toFixed(1)}</b> <span class="${diff >= 0 ? "pos" : "neg"} small">${diff >= 0 ? "+" : ""}${diff.toFixed(1)}</span></td>
       <td class="num">${pct(pr.p_over)}</td>
       <td class="num ${best.ev >= 0 ? "pos" : "neg"}">${signedPct(best.ev)} <span class="muted small">${e.best_side[0]}</span></td>
       <td>${decision}</td>${del}</tr>`;
@@ -563,6 +564,7 @@ function bindUI() {
       market_blend: Math.min(1, Math.max(0, n("#set-blend", 35) / 100)),
       bankroll: n("#set-bankroll", 1000),
       kelly_mult: Math.min(1, Math.max(0, n("#set-kelly", 0.25))),
+      bias_adjust: $("#set-bias").checked,
       books: (() => {
         const boxes = $$("#book-filter input");
         const on = boxes.filter((b) => b.checked).map((b) => b.value);

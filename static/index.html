@@ -33,6 +33,12 @@
     <section id="view-props" class="view" hidden>
       <div class="tiles" id="tiles"></div>
 
+      <div class="notice caution">
+        <span><b>Unproven against real lines.</b> On opening-night prices the model ran systematically below the books,
+          and its edges are far larger than real betting edges usually are. Treat picks as a paper-trading log until
+          graded results show the model actually beats closing lines.</span>
+      </div>
+
       <div class="notice" id="example-notice" hidden>
         <span>The board is showing <b>example lines</b> (last-season averages at −110), not real sportsbook lines.
           Add your book's lines to get real EV.</span>
@@ -60,6 +66,8 @@
         <label>Market blend <span><input type="number" id="set-blend" step="5" min="0" max="100"> %</span></label>
         <label>Bankroll <span>$ <input type="number" id="set-bankroll" step="100" min="0"></span></label>
         <label>Kelly fraction <span><input type="number" id="set-kelly" step="0.05" min="0" max="1"></span></label>
+        <label class="check span-all"><input type="checkbox" id="set-bias"> Correct for model bias vs market
+          (removes tonight's average model-minus-line gap per stat, leaving player-specific disagreements)</label>
         <div class="books-setting"><span>My books</span><div id="book-filter" class="book-filter"></div></div>
         <p class="muted small">Market blend mixes the book's no-vig probability into the model's. Higher values are more conservative.
           Stakes use fractional Kelly, capped at 3% of bankroll.</p>

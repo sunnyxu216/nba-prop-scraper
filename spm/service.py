@@ -1,5 +1,7 @@
 """Glue between the dataset, models, EV maths and reasoning; returns JSON-ready dicts."""
 
+import statistics
+
 import numpy as np
 
 from . import advanced, backtest, ev, features, lineups, ml, model, reasoning
@@ -7,6 +9,7 @@ from .data import FIRST_SEASON, TEAMS, norm_name, season_label
 
 SEASON_STATS = ("PTS", "REB", "AST", "3PM", "STL", "BLK", "TOV", "PRA")
 DISAGREE = 0.12  # ML vs formula gap that marks a projection as low-confidence
+BIAS_MIN_PLAYERS = 8  # need this many players on a stat before estimating the model-vs-market gap
 
 
 def _r(x, d=1):
@@ -100,7 +103,13 @@ def _book_allowed(book, books):
 
 
 def evaluate_board(engine, props, settings=None):
-    """Group offers for the same player/stat/game across books and evaluate every one."""
+    """Group offers for the same player/stat/game across books and evaluate every one.
+
+    Two passes: project every group once, then (if settings["bias_adjust"], the
+    default) measure tonight's model-vs-market gap per stat (median of projection
+    minus median line) and remove it before pricing, so what's left are
+    player-specific disagreements rather than the model's overall lean.
+    """
     settings = settings or {}
     books = {b.lower() for b in settings.get("books") or []}
     ds = engine.ds
@@ -108,7 +117,28 @@ def evaluate_board(engine, props, settings=None):
     for prop in props:
         player = ds.find_player(prop["player"])
         groups.setdefault(_group_key(prop, player), (player, []))[1].append(prop)
-    return [_evaluate_group(engine, player, offers, settings, books) for player, offers in groups.values()]
+    projected = {}
+    for key, (player, offers) in groups.items():
+        if player:
+            first = offers[0]
+            projected[key] = engine.project(player, first["stat"], first["opponent"] or None,
+                                            first["home"], first["b2b"])
+    shifts = market_bias(groups, projected) if settings.get("bias_adjust", True) else {}
+    return [_evaluate_group(engine, player, offers, settings, books, projected.get(key),
+                            shifts.get(offers[0]["stat"]))
+            for key, (player, offers) in groups.items()]
+
+
+def market_bias(groups, projected):
+    """{stat: {"shift", "players"}}: median (projection - median line) per stat, if enough players."""
+    gaps = {}
+    for key, (player, offers) in groups.items():
+        proj = (projected.get(key) or (None,))[0]
+        if proj:
+            line = statistics.median(o["line"] for o in offers)
+            gaps.setdefault(offers[0]["stat"], []).append(proj["mean"] - line)
+    return {stat: {"shift": statistics.median(g), "players": len(g)}
+            for stat, g in gaps.items() if len(g) >= BIAS_MIN_PLAYERS}
 
 
 def evaluate_prop(engine, prop, settings=None):
@@ -116,7 +146,7 @@ def evaluate_prop(engine, prop, settings=None):
     return _evaluate_group(engine, engine.ds.find_player(prop["player"]), [prop], settings or {}, set())
 
 
-def _evaluate_group(engine, player, offers, settings, books):
+def _evaluate_group(engine, player, offers, settings, books, projected=None, bias=None):
     first = offers[0]
     out = {"id": first["id"], "prop": first, "ok": False,
            "offers": [{"prop": o} for o in offers]}
@@ -124,12 +154,18 @@ def _evaluate_group(engine, player, offers, settings, books):
         out["error"] = f"Player '{first['player']}' not found in NBA data."
         return out
     out["player"] = {"id": player.id, "name": player.name, "team": player.team}
-    proj, hist, cal = engine.project(player, first["stat"], first["opponent"] or None, first["home"], first["b2b"])
+    proj, hist, cal = projected or engine.project(player, first["stat"], first["opponent"] or None,
+                                                  first["home"], first["b2b"])
     if proj is None:
         out["error"] = (f"Only {hist.n} NBA games on record; not enough history to model "
                         f"(rookies are skipped until they log {model.MIN_GAMES} games).")
         return out
 
+    raw_mean = proj["mean"]
+    if bias and bias["shift"]:
+        mean = max(0.05, raw_mean - bias["shift"])
+        proj = {**proj, "mean": mean, "var": proj["var"] * mean / raw_mean,
+                "sd": (proj["var"] * mean / raw_mean) ** 0.5}
     disagree = proj.get("ml") and proj["ml"]["formula_mean"] > 0 and         abs(proj["mean"] / proj["ml"]["formula_mean"] - 1) > DISAGREE
     low_conf_base = proj["team_change"] or hist.n < 25 or bool(disagree)
     best = None
@@ -161,11 +197,21 @@ def _evaluate_group(engine, player, offers, settings, books):
             "p_over": pl["p_over"], "p_under": pl["p_under"], "p_push": pl["p_push"],
             "low": iv[0], "high": iv[1], "label": pl["label"], "n_games": pl["n_games"],
             "formula_mean": _r(pl["ml"]["formula_mean"], 2) if pl.get("ml") else None,
+            "raw_mean": _r(raw_mean, 2), "bias_shift": _r(bias["shift"], 2) if bias else None,
         },
         "ev": best["ev"],
         "reasoning": reasoning.prop_reasoning(pl, ctx, best["ev"], player, iv),
         "recent": ctx["recent"] if ctx else [],
     })
+    if bias and bias["shift"]:
+        out["reasoning"]["points"].insert(1, {
+            "lean": "neutral",
+            "text": f"Market-bias adjustment: across {bias['players']} players tonight the model runs "
+                    f"{abs(bias['shift']):.1f} {'below' if bias['shift'] < 0 else 'above'} the books on {first['stat']}, "
+                    f"so {abs(bias['shift']):.1f} was {'added to' if bias['shift'] < 0 else 'taken off'} this projection "
+                    f"(raw {raw_mean:.1f}). What's left is how this player differs from the market, "
+                    f"not the model's overall lean.",
+        })
     if disagree:
         out["reasoning"]["points"].insert(1, {
             "lean": "neutral",
