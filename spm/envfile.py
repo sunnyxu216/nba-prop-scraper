@@ -7,7 +7,9 @@ GitHub Actions the same names come from repository secrets instead.
 import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+from .data import ROOT as _ROOT  # project folder, or the .exe's folder when packaged
+
+ROOT = Path(_ROOT)
 
 
 def load(path=ROOT / ".env"):
