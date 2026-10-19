@@ -61,11 +61,40 @@ def test_boxscore_parsing():
     def http(url, params):
         seen.update(params)
         return payload
-    rows = boxscores.fetch(dt.date(2026, 10, 20), dt.date(2026, 10, 21), http=http)
+    rows = boxscores.fetch(dt.date(2026, 10, 20), dt.date(2026, 10, 21), http=http, source="nba")
     assert seen["DateFrom"] == "10/20/2026" and seen["Season"] == "2026-27"
     jokic, sga = rows
     assert (jokic["player_key"], jokic["team"], jokic["opponent"], jokic["pts"]) == ("nikola jokic", "DEN", "OKC", 30)
     assert (sga["opponent"], sga["minutes"]) == ("DEN", 35.5)
+
+
+def test_espn_boxscore_parsing():
+    board = {"events": [
+        {"id": "401", "competitions": [{"status": {"type": {"completed": True}},
+                                        "competitors": [{"team": {"abbreviation": "GS"}},
+                                                        {"team": {"abbreviation": "LAL"}}]}]},
+        {"id": "402", "competitions": [{"status": {"type": {"completed": False}}, "competitors": []}]},
+    ]}
+    labels = ["MIN", "PTS", "FG", "3PT", "FT", "REB", "AST", "TO", "STL", "BLK", "OREB", "DREB", "PF", "+/-"]
+    summary = {"boxscore": {"players": [
+        {"team": {"abbreviation": "GS"}, "statistics": [{"labels": labels, "athletes": [
+            {"athlete": {"displayName": "Stephen Curry"}, "didNotPlay": False,
+             "stats": ["34", "31", "10-21", "6-14", "5-5", "4", "7", "3", "2", "0", "1", "3", "2", "+9"]},
+            {"athlete": {"displayName": "Injured Guy"}, "didNotPlay": True, "stats": []},
+        ]}]},
+        {"team": {"abbreviation": "LAL"}, "statistics": [{"labels": labels, "athletes": []}]},
+    ]}}
+    calls = []
+
+    def http(url, params):
+        calls.append(url.rsplit("/", 1)[1])
+        return board if url.endswith("/scoreboard") else summary
+    rows = boxscores.fetch(dt.date(2026, 10, 21), dt.date(2026, 10, 21), http=http, source="espn")
+    assert calls == ["scoreboard", "summary"]              # unfinished game 402 not fetched
+    assert len(rows) == 1                                  # the DNP is skipped
+    r = rows[0]
+    assert (r["player_key"], r["team"], r["opponent"], r["source_game_id"]) == ("stephen curry", "GSW", "LAL", "espn:401")
+    assert (r["pts"], r["reb"], r["ast"], r["fg3m"], r["stl"], r["blk"], r["tov"]) == (31, 4, 7, 6, 2, 0, 3)
 
 
 # --------------------------------------------------------------------------- database
