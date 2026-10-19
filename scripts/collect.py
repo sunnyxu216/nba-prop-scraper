@@ -10,11 +10,15 @@ Settings (environment variables):
   DAYS_AHEAD      days of games to fetch, default 2
   STATE_CODE      Action Network state for book availability, default "NJ"
   REQUEST_DELAY   seconds between Action Network requests, default 0.25
-  OUT_DIR         where daily files go, default data/offers
+  DATABASE_URL    Postgres (Supabase). When set, offers go to the database;
+                  otherwise to daily CSV files in OUT_DIR
+  OUT_DIR         CSV fallback location, default data/offers
   ODDS_API_KEY    only needed for the_odds_api
 
-Storage: one CSV per UTC day (OUT_DIR/YYYY-MM-DD.csv), appending a row only when
-an offer is new or its line/price moved since the last time it was seen.
+Storage either way is change-only: an offer is written only when it's new or its
+line/price moved since it was last seen. In Postgres that comparison happens in
+SQL inside one transaction (spm/store/pg.py); the CSV fallback keeps one file
+per UTC day (OUT_DIR/YYYY-MM-DD.csv).
 
 Exit codes: 0 = ok (including "no games"), 1 = every source failed.
 """
@@ -27,7 +31,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from spm import odds  # noqa: E402
+from spm import envfile, odds  # noqa: E402
 from spm.odds import action_network  # noqa: E402
 
 FIELDS = ["observed_at", "source", "sport", "event_id", "start_time", "home_team", "away_team",
@@ -89,6 +93,7 @@ def record(offers, out_dir, today):
 
 
 def main():
+    envfile.load()
     cfg = settings()
     sources = odds.enabled_sources()
     for s in sources:
@@ -111,9 +116,15 @@ def main():
         for err in s.errors[:10]:
             print(f"::warning::{s.name}: {err}")
 
-    today = dt.datetime.now(dt.timezone.utc).date()
-    written = record(offers, cfg["out_dir"], today)
-    print(f"{written} new or moved offers written to {cfg['out_dir']}/{today.isoformat()}.csv")
+    if os.environ.get("DATABASE_URL"):
+        from spm.store import pg
+        with pg.connect() as conn:
+            written = pg.record(conn, offers)
+        print(f"{written} new or moved offers written to Postgres")
+    else:
+        today = dt.datetime.now(dt.timezone.utc).date()
+        written = record(offers, cfg["out_dir"], today)
+        print(f"{written} new or moved offers written to {cfg['out_dir']}/{today.isoformat()}.csv")
     return 1 if failed == len(sources) else 0
 
 

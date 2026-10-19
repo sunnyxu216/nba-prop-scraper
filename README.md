@@ -177,7 +177,14 @@ spm/odds/           odds sources behind one interface (Offer + OddsSource + regi
   the_odds_api.py   licensed feed for launch (needs ODDS_API_KEY)
 spm/collector.py    snapshots enabled sources (ODDS_SOURCES), change-only storage, grading
 spm/yearly.py       year-by-year walk-forward test and feature ablation
-collect_lines.py    one snapshot + grading (run hourly by Task Scheduler)
+collect_lines.py    legacy local snapshot + grading (the Windows task; now disabled)
+scripts/collect.py  standalone cloud collector (GitHub Actions hourly); Postgres or CSV
+scripts/migrate.py  apply migrations/*.sql to DATABASE_URL and sync the odds-source registry
+scripts/import_lines.py  one-time import of pre-Postgres line history
+spm/store/pg.py     Postgres storage: change-only writes in SQL, idempotent snapshots
+migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
+                    offers_licensed view)
+.env.example        template for .env (DATABASE_URL, ODDS_API_KEY); .env is gitignored
 spm/service.py      glue used by the API
 tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`
 static/             front end (HTML/CSS/JS, no build step)

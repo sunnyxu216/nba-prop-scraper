@@ -1,9 +1,10 @@
 # Hourly line collection, off the user's PC.
 #
-# Code comes from main; collected data lives on a separate `data` branch
-# (one CSV per UTC day under offers/), so main's history stays clean.
-# GitHub's scheduler is "roughly on time": runs can start minutes late or be
-# skipped under load, and times are UTC.
+# With the DATABASE_URL repository secret set, offers go to Postgres (Supabase)
+# after applying any pending migrations. Without it, they go to the `data`
+# branch as daily CSVs (one per UTC day under offers/).
+# GitHub's scheduler is "roughly on time": runs can start late or be skipped,
+# and times are UTC.
 name: Collect lines
 
 on:
@@ -12,11 +13,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write          # push to the data branch
+  contents: write          # push to the data branch (CSV mode only)
 
 concurrency:
   group: collect-lines     # never two collectors at once
   cancel-in-progress: false
+
+env:
+  ODDS_SOURCES: action_network
+  STATE_CODE: NJ
+  DAYS_AHEAD: "2"
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 jobs:
   collect:
@@ -26,7 +33,24 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ---------------- Postgres mode
+      - name: Install database driver
+        if: env.DATABASE_URL != ''
+        run: pip install -r requirements-collector.txt
+      - name: Apply migrations
+        if: env.DATABASE_URL != ''
+        run: python scripts/migrate.py
+      - name: Collect into Postgres
+        if: env.DATABASE_URL != ''
+        run: python scripts/collect.py
+
+      # ---------------- CSV fallback (no DATABASE_URL secret)
       - name: Check out data branch (create it on first run)
+        if: env.DATABASE_URL == ''
         run: |
           git fetch origin data --depth=1 || true
           if git rev-parse --verify origin/data >/dev/null 2>&1; then
@@ -34,20 +58,13 @@ jobs:
           else
             git worktree add --orphan -b data store
           fi
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Collect
+      - name: Collect into CSV
+        if: env.DATABASE_URL == ''
         env:
-          ODDS_SOURCES: action_network
-          STATE_CODE: NJ
-          DAYS_AHEAD: "2"
           OUT_DIR: store/offers
         run: python scripts/collect.py
-
       - name: Save to data branch
+        if: env.DATABASE_URL == ''
         working-directory: store
         run: |
           git config user.name "github-actions[bot]"
