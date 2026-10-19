@@ -1,0 +1,19 @@
+# Spike (step 1): does Action Network answer requests from GitHub's runners?
+# Run it from the Actions tab ("Run workflow") a few times on different days;
+# blocks on cloud IP ranges are often intermittent.
+name: Action Network IP check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Request scoreboard and one props market
+        run: python .github/scripts/an_ip_check.py
