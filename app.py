@@ -49,7 +49,9 @@ def load(force=False):
         props.seed_examples(ds)
         with LOCK:
             STATE.update(ds=ds, engine=engine, season=season, status="ready")
-        if STATE["scheduler"] is None:
+        # With a database configured, the cloud collector (GitHub Actions) does the scraping;
+        # only fall back to snapshotting from this PC when there's no database.
+        if STATE["scheduler"] is None and not os.environ.get("DATABASE_URL"):
             STATE["scheduler"] = collector.Scheduler(lambda: STATE["ds"], every_hours=3, log=log)
         log("Ready.")
     except Exception as e:
@@ -184,6 +186,8 @@ class Handler(BaseHTTPRequestHandler):
             if not parts or parts[0] != "api":
                 return self._static(url.path)
             return self._api(method, parts[1:], q)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            return  # the browser gave up (closed tab, refresh) before the answer was ready
         except ValueError as e:
             self._send(400, {"error": str(e)})
         except Exception as e:
