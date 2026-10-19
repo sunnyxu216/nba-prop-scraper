@@ -55,4 +55,22 @@ def test_settings_from_env(monkeypatch):
     monkeypatch.setenv("DAYS_AHEAD", "1")
     monkeypatch.setenv("OUT_DIR", "x/y")
     cfg = collect.settings()
-    assert (cfg["state"], cfg["days"], cfg["out_dir"]) == ("PA", 1, "x/y")
+    assert (cfg["state"], cfg["days"], cfg["out_dir"]) == ("PA", {"nba": 1}, "x/y")
+
+
+def test_sports_and_per_sport_days(monkeypatch):
+    monkeypatch.setenv("SPORTS", "nba, nfl")
+    monkeypatch.setenv("DAYS_AHEAD", "2")
+    monkeypatch.setenv("DAYS_AHEAD_NFL", "6")
+    assert collect.settings()["days"] == {"nba": 2, "nfl": 6}
+    monkeypatch.delenv("DAYS_AHEAD")
+    monkeypatch.delenv("DAYS_AHEAD_NFL")
+    assert collect.settings()["days"] == {"nba": 2, "nfl": 7}      # built-in defaults
+
+
+def test_one_sided_offer_in_csv(tmp_path):
+    td = offer(line=0.5, over=250, under=None)
+    td = type(td)(**{**td.as_dict(), "sport": "nfl", "market": "ANYTIME_TD"})
+    assert collect.record([td], str(tmp_path), TODAY) == 1
+    assert collect.record([td], str(tmp_path), TODAY) == 0          # re-read from CSV ("" under) still matches
+    assert rows(tmp_path)[0]["under_odds"] == ""

@@ -111,10 +111,11 @@ Line collection, grading and health checks run on GitHub Actions and store every
    (`--status` shows recent runs and GitHub's responses; `--test` dispatches Collect once).
    The token expires: renew it and re-run the script before then.
 7. **Workflows** (Actions tab, dispatch-only; times are when Supabase triggers them, UTC):
-   - **Collect lines**, hourly at :17: `scripts/collect.py` (Action Network -> `offers`, change-only)
+   - **Collect lines**, hourly at :17: `scripts/collect.py` (Action Network -> `offers`, change-only), for
+     NBA (games in the next 2 days) and NFL (next 7 days; props open 5-6 days before kickoff)
    - **Grade lines**, 10:00 daily: `scripts/grade.py` (ESPN box scores -> `grades`, incremental)
-   - **Health**, 15:00 daily: fails (emails you) if collection is stale or grading is behind; Mondays
-     posts a report to the "Health report" issue
+   - **Health**, 15:00 daily, checked per sport: fails (emails you) if collection is stale or grading is
+     behind; Mondays posts a report to the "Health report" issue
    - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
 
 Useful queries in Supabase's SQL editor:
@@ -123,7 +124,15 @@ Useful queries in Supabase's SQL editor:
 select * from offers_current order by last_seen desc limit 50;          -- latest prices
 select result, count(*) from grades group by 1;                          -- grading so far
 select * from grades_licensed;                                            -- only licensed sources (for anything commercial)
+select market, count(*) from offers where sport = 'nfl' group by 1;       -- NFL lines collected so far
 ```
+
+### NFL (in progress)
+
+NFL lines are collected alongside NBA into the same tables (`sport = 'nfl'`). Markets: PASS_YDS, PASS_CMP,
+PASS_ATT, PASS_TD, INT, RUSH_YDS, RUSH_ATT, REC, REC_YDS, RUSH_REC_YDS and ANYTIME_TD. Anytime TD is a
+yes/no bet, stored as over 0.5 with `under_odds` null when the book posts no "no" price. NFL team codes
+follow nflverse (`spm/nfl/teams.py`). Grading, the model and the dashboard come next.
 
 ## How the model works
 
@@ -205,6 +214,7 @@ spm/reasoning.py    plain-English explanations
 spm/backtest.py     walk-forward backtest + calibration fit
 spm/props.py        props.csv storage
 spm/lineups.py      who's playing: rotations, absences, injury report
+spm/nfl/            NFL: team codes (data and model to follow)
 spm/odds/           odds sources behind one interface (Offer + OddsSource + registry)
   base.py           the interface; `source` and `licensed` decide what's usable commercially
   action_network.py dev-only scraped feed (licensed = False)
@@ -223,7 +233,8 @@ scripts/health.py   daily "Health" workflow: fails (emails you) on missing succe
                     to the "Health report" issue and re-enables scheduled workflows (60-day keepalive)
 scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
-                    offers_licensed view; 002_grading.sql: results, grades, grades_licensed view)
+                    offers_licensed view; 002_grading.sql: results, grades, grades_licensed view;
+                    003_nfl.sql: NFL sport, nullable under_odds for one-sided markets)
 .env.example        template for .env (DATABASE_URL, ODDS_API_KEY); .env is gitignored
 spm/service.py      glue used by the API
 tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`

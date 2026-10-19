@@ -17,6 +17,7 @@ from ..model import STATS
 FINISHED_AFTER = dt.timedelta(hours=3)   # tip-off + 3h: the game is over
 ET_OFFSET = dt.timedelta(hours=5)        # UTC -> US Eastern *date* (safe for NBA tip times in EST and EDT)
 FIELDS = ("pts", "reb", "ast", "fg3m", "stl", "blk", "tov")
+GRADED_SPORTS = ("nba",)                 # sports with a box-score source and grader (health checks only these)
 
 
 def et_date(start_time):
@@ -45,20 +46,20 @@ def settle(line, actual):
     return "over" if actual > line else "under" if actual < line else "push"
 
 
-def pending_events(conn, now=None):
-    """Finished games with at least one ungraded offer: [(event_id, start_time, home, away)]."""
+def pending_events(conn, now=None, sport="nba"):
+    """Finished games of one sport with at least one ungraded offer: [(event_id, start_time, home, away)]."""
     now = now or dt.datetime.now(dt.timezone.utc)
     with conn.cursor() as cur:
         cur.execute("""
             select e.id, e.start_time, e.home_team, e.away_team
             from events e
-            where e.start_time is not null and e.start_time < %s
+            where e.sport = %s and e.start_time is not null and e.start_time < %s
               and exists (
                 select 1 from offers o
                 left join grades g on g.event_id = o.event_id and g.player_key = o.player_key
                                   and g.market = o.market and g.book = o.book
                 where o.event_id = e.id and g.event_id is null and o.observed_at < e.start_time)
-            order by e.start_time""", (now - FINISHED_AFTER,))
+            order by e.start_time""", (sport, now - FINISHED_AFTER))
         return cur.fetchall()
 
 

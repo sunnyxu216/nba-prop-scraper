@@ -79,3 +79,21 @@ def test_status_from_database(conn):
     assert s["last_seen"] == dt.datetime(2026, 10, 20, 16, 0, tzinfo=UTC)
     assert health.problems(s) == [p for p in health.problems(s) if p.startswith("Grading is behind")]
     assert "Weekly health report" in health.weekly_report(conn, now=NOW)
+
+
+@needs_db
+def test_status_per_sport(conn):
+    from spm.store import pg
+    pg.record(conn, [offer("2026-10-21T00:00:00Z", "2026-10-20T16:00:00Z", "tonight")])       # NBA, fresh
+    nfl = Offer(**{**offer("2026-10-21T00:15:00Z", "2026-10-20T08:00:00Z", "mnf").as_dict(),   # NFL, 10h old
+                   "sport": "nfl", "home_team": "SF", "away_team": "WAS", "team": "WAS", "market": "REC"})
+    pg.record(conn, [nfl])
+    nba, nfl_s = health.status(conn, now=NOW, sport="nba"), health.status(conn, now=NOW, sport="nfl")
+    assert health.problems(nba) == []
+    (p,) = health.problems(nfl_s)                       # NBA's fresh lines no longer hide NFL going stale
+    assert p.startswith("Collection is stale")
+    old = Offer(**{**nfl.as_dict(), "event_id": "last-week", "start_time": "2026-10-13T00:15:00Z",
+                   "observed_at": "2026-10-12T20:00:00Z"})
+    pg.record(conn, [old])
+    assert health.status(conn, now=NOW, sport="nfl", check_grading=False)["ungraded_old_games"] == 0
+    assert health.status(conn, now=NOW, sport="nfl")["ungraded_old_games"] == 1

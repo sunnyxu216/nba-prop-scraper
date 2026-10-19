@@ -213,3 +213,13 @@ def test_regrade_after_stat_correction(conn):
     assert grading.delete_grades_since(conn, dt.date(2026, 10, 20)) == 1
     run(conn)
     assert grades(conn)[0][-1] == "over"
+
+
+@needs_db
+def test_nfl_games_not_picked_up_by_nba_grader(conn):
+    from spm.store import pg
+    nfl = Offer(**{**offer().as_dict(), "sport": "nfl", "event_id": "n1", "home_team": "CHI", "away_team": "NE",
+                   "market": "REC", "team": "NE"})
+    pg.record(conn, [nfl])
+    assert grading.pending_events(conn, now=NOW) == []
+    assert [e[2:] for e in grading.pending_events(conn, now=NOW, sport="nfl")] == [("CHI", "NE")]

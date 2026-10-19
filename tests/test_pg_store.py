@@ -105,3 +105,35 @@ def test_unknown_sport_rejected(conn):
     bad = Offer(**{**bad.as_dict(), "sport": "nbaa"})
     with pytest.raises(Exception):
         pg.record(conn, [bad])
+
+
+# --------------------------------------------------------------------------- NFL (migration 003)
+
+def td(over=250, under=None, observed="2026-10-20T12:00:00Z"):
+    """An Anytime TD offer: one-sided, over 0.5, often with no under price."""
+    return Offer(source="action_network", sport="nfl", event_id="nfl1", start_time="2026-10-23T00:15:00Z",
+                 home_team="CHI", away_team="NE", player_name="Stefon Diggs", source_player_id="7", team="NE",
+                 market="ANYTIME_TD", book="DraftKings", line=0.5, over_odds=over, under_odds=under,
+                 observed_at=observed)
+
+
+def test_nfl_one_sided_offer_stored(conn):
+    assert pg.record(conn, [td()]) == 1
+    assert q(conn, "select sport, market, line::float, over_odds, under_odds from offers") == \
+        [("nfl", "ANYTIME_TD", 0.5, 250, None)]
+
+
+def test_null_under_price_change_detection(conn):
+    pg.record(conn, [td()])
+    assert pg.record(conn, [td(observed="2026-10-20T13:00:00Z")]) == 0                 # null == null: unchanged
+    assert pg.record(conn, [td(under=-350, observed="2026-10-20T14:00:00Z")]) == 1     # "no" price appears
+    assert pg.record(conn, [td(over=230, under=-350, observed="2026-10-20T15:00:00Z")]) == 1
+
+
+def test_current_lines_filtered_by_sport(conn):
+    future = "2099-01-01T00:00:00Z"
+    nba = Offer(**{**offer().as_dict(), "start_time": future, "observed_at": "2099-01-01T00:00:00Z"})
+    nfl = Offer(**{**td().as_dict(), "start_time": future, "observed_at": "2099-01-01T00:00:00Z"})
+    pg.record(conn, [nba, nfl])
+    assert [r["market"] for r in pg.current_lines(conn, max_age_hours=10**6)] == ["PTS"]   # NBA by default
+    assert [r["market"] for r in pg.current_lines(conn, max_age_hours=10**6, sport="nfl")] == ["ANYTIME_TD"]
