@@ -8,16 +8,33 @@ ungraded lines, so its cost grows with *new* games, not with history:
   3. closing lines (last price before tip-off) not yet graded, in SQL;
   4. settle each: over / under / push, or void when the player didn't play.
      Games whose box scores aren't available yet are skipped and retried later.
+
+Each sport has its own results table and market definitions (SPORTS below).
 """
 
 import datetime as dt
 
 from ..model import STATS
 
-FINISHED_AFTER = dt.timedelta(hours=3)   # tip-off + 3h: the game is over
-ET_OFFSET = dt.timedelta(hours=5)        # UTC -> US Eastern *date* (safe for NBA tip times in EST and EDT)
+ET_OFFSET = dt.timedelta(hours=5)        # UTC -> US Eastern *date* (safe for NBA/NFL start times in EST and EDT)
 FIELDS = ("pts", "reb", "ast", "fg3m", "stl", "blk", "tov")
-GRADED_SPORTS = ("nba",)                 # sports with a box-score source and grader (health checks only these)
+NFL_FIELDS = ("pass_att", "pass_cmp", "pass_yds", "pass_td", "pass_int", "rush_att", "rush_yds", "rush_td",
+              "rec", "rec_yds", "rec_td", "targets", "other_td")
+NFL_MARKETS = {  # market -> results_nfl columns summed
+    "PASS_YDS": ("pass_yds",), "PASS_CMP": ("pass_cmp",), "PASS_ATT": ("pass_att",), "PASS_TD": ("pass_td",),
+    "INT": ("pass_int",), "RUSH_YDS": ("rush_yds",), "RUSH_ATT": ("rush_att",), "REC": ("rec",),
+    "REC_YDS": ("rec_yds",), "RUSH_REC_YDS": ("rush_yds", "rec_yds"),
+    "ANYTIME_TD": ("rush_td", "rec_td", "other_td"),   # passing TDs don't count
+}
+SPORTS = {
+    # table, stat columns, market -> columns, how long after the start a game is surely over
+    "nba": {"table": "results", "fields": FIELDS, "markets": {k: v[1] for k, v in STATS.items()},
+            "finished_after": dt.timedelta(hours=3)},
+    "nfl": {"table": "results_nfl", "fields": NFL_FIELDS, "markets": NFL_MARKETS,
+            "finished_after": dt.timedelta(hours=4, minutes=30)},   # ~3h15 plus overtime and delays
+}
+GRADED_SPORTS = tuple(SPORTS)            # sports with a box-score source and grader (health checks these)
+FINISHED_AFTER = SPORTS["nba"]["finished_after"]
 
 
 def et_date(start_time):
@@ -25,9 +42,9 @@ def et_date(start_time):
     return (start_time.astimezone(dt.timezone.utc) - ET_OFFSET).date()
 
 
-def market_value(market, stats):
-    """Actual value of a prop market from a box-score row (dict with pts/reb/...)."""
-    return sum(stats[f] for f in STATS[market][1])
+def market_value(market, stats, sport="nba"):
+    """Actual value of a prop market from a box-score row (dict of that sport's stat columns)."""
+    return sum(stats[f] for f in SPORTS[sport]["markets"][market])
 
 
 def match_name(key, candidates):
@@ -59,20 +76,25 @@ def pending_events(conn, now=None, sport="nba"):
                 left join grades g on g.event_id = o.event_id and g.player_key = o.player_key
                                   and g.market = o.market and g.book = o.book
                 where o.event_id = e.id and g.event_id is null and o.observed_at < e.start_time)
-            order by e.start_time""", (sport, now - FINISHED_AFTER))
+            order by e.start_time""", (sport, now - SPORTS[sport]["finished_after"]))
         return cur.fetchall()
 
 
-def upsert_results(conn, rows):
-    """rows: dicts with the results columns. Upsert keeps stat corrections current."""
+def upsert_results(conn, rows, sport="nba"):
+    """rows: dicts with the sport's results columns. Upsert keeps stat corrections current."""
     if not rows:
         return 0
-    cols = ["sport", "game_date", "source_game_id", "player_key", "player_name", "team", "opponent",
-            "minutes", *FIELDS]
+    spec = SPORTS[sport]
+    if sport == "nba":
+        cols, key = ["sport", "game_date", "source_game_id", "player_key", "player_name", "team", "opponent",
+                     "minutes", *FIELDS], "sport, source_game_id, player_key"
+    else:
+        cols, key = ["sport", "game_date", "source_game_id", "player_key", "player_name", "source_player_id",
+                     "team", "opponent", *spec["fields"]], "source_game_id, player_key"
     with conn.transaction(), conn.cursor() as cur:
         cur.executemany(
-            f"insert into results ({', '.join(cols)}) values ({', '.join(['%s'] * len(cols))}) "
-            "on conflict (sport, source_game_id, player_key) do update set "
+            f"insert into {spec['table']} ({', '.join(cols)}) values ({', '.join(['%s'] * len(cols))}) "
+            f"on conflict ({key}) do update set "
             + ", ".join(f"{c} = excluded.{c}" for c in cols[4:]) + ", loaded_at = now()",
             [tuple(r[c] for c in cols) for r in rows])
     return len(rows)
@@ -92,20 +114,22 @@ def _closing_lines(cur, event_ids):
     return cur.fetchall()
 
 
-def grade_events(conn, events):
+def grade_events(conn, events, sport="nba"):
     """Grade every ungraded closing line of these events whose box score is loaded.
 
     Returns (graded, voided, skipped_games).
     """
+    spec = SPORTS[sport]
     graded = voided = 0
     skipped = []
     with conn.transaction(), conn.cursor() as cur:
         by_event = {}
         for event_id, start, home, away in events:
-            cur.execute("""select player_key, pts, reb, ast, fg3m, stl, blk, tov from results
-                           where sport = 'nba' and game_date = %s and team in (%s, %s)
-                             and opponent in (%s, %s)""", (et_date(start), home, away, home, away))
-            box = {r[0]: dict(zip(FIELDS, r[1:])) for r in cur.fetchall()}
+            # table and column names come from SPORTS above, never from input
+            cur.execute(f"""select player_key, {', '.join(spec['fields'])} from {spec['table']}
+                            where sport = %s and game_date = %s and team in (%s, %s)
+                              and opponent in (%s, %s)""", (sport, et_date(start), home, away, home, away))
+            box = {r[0]: dict(zip(spec["fields"], r[1:])) for r in cur.fetchall()}
             if box:
                 by_event[event_id] = box
             else:
@@ -124,7 +148,7 @@ def grade_events(conn, events):
                 actual, result = None, "void"     # didn't play: books void the bet
                 voided += 1
             else:
-                actual = market_value(market, stats)
+                actual = market_value(market, stats, sport)
                 result = settle(float(line), actual)
                 graded += 1
             rows.append((event_id, player_key, market, book, sport, source, name, line, over, under,
