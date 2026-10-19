@@ -91,6 +91,34 @@ Cost: 1 credit per market returned, per region, per game, so about 5 credits per
 The free plan (500 credits/month) covers ~12 full slates; the $30 plan (20K) covers several refreshes a day.
 `max_events` caps how many games one import pulls.
 
+## Cloud pipeline (setup from scratch)
+
+Line collection, grading and health checks run on GitHub Actions and store everything in Postgres
+(Supabase), so no PC needs to be on.
+
+1. **Supabase:** create a free project (Data API off, automatic RLS on). Copy **Connect -> Session pooler**
+   (port 5432; the direct connection is IPv6-only and GitHub runners can't reach it).
+2. **Local:** copy `.env.example` to `.env` and set `DATABASE_URL=` to that string with the password
+   filled in (no brackets). `.env` is gitignored.
+3. **Database:** `python scripts/migrate.py` creates the tables (`migrations/*.sql`, applied once each).
+4. **GitHub:** repo Settings -> Secrets and variables -> Actions -> New repository secret
+   `DATABASE_URL` = the same string (value only, without `DATABASE_URL=`).
+5. **History (optional):** `python scripts/import_lines.py` imports older CSV line history.
+6. **Workflows** (Actions tab), all scheduled in UTC:
+   - **Collect lines**, hourly at :17: `scripts/collect.py` (Action Network -> `offers`, change-only)
+   - **Grade lines**, 10:00 daily: `scripts/grade.py` (ESPN box scores -> `grades`, incremental)
+   - **Health**, 15:00 daily: fails (emails you) if collection is stale or grading is behind; Mondays
+     posts a report to the "Health report" issue and re-enables the schedules (60-day keepalive)
+   - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
+
+Useful queries in Supabase's SQL editor:
+
+```sql
+select * from offers_current order by last_seen desc limit 50;          -- latest prices
+select result, count(*) from grades group by 1;                          -- grading so far
+select * from grades_licensed;                                            -- only licensed sources (for anything commercial)
+```
+
 ## How the model works
 
 **Machine-learning model** (used once trained): one LightGBM model per stat (PTS, REB, AST, 3PM, STL, BLK, TOV
