@@ -223,3 +223,55 @@ def test_nfl_games_not_picked_up_by_nba_grader(conn):
     pg.record(conn, [nfl])
     assert grading.pending_events(conn, now=NOW) == []
     assert [e[2:] for e in grading.pending_events(conn, now=NOW, sport="nfl")] == [("CHI", "NE")]
+
+
+# --------------------------------------------------------------------------- NFL
+
+NFL_TIP = "2026-10-18T13:30:00Z"   # JAX @ HOU in London (recorded fixture, tests/fixtures/espn_nfl_game.json)
+
+
+def nfl_offer(name, market, line, team, over=-110, under=-110):
+    return Offer(source="action_network", sport="nfl", event_id="jaxhou", start_time=NFL_TIP, home_team="HOU",
+                 away_team="JAX", player_name=name, source_player_id="", team=team, market=market, book="DraftKings",
+                 line=line, over_odds=over, under_odds=under, observed_at="2026-10-18T12:00:00Z")
+
+
+def test_nfl_market_value():
+    row = dict.fromkeys(grading.NFL_FIELDS, 0) | {"pass_td": 3, "rush_td": 1, "rec_yds": 40, "rush_yds": 25}
+    assert grading.market_value("ANYTIME_TD", row, "nfl") == 1          # passing TDs don't count
+    assert grading.market_value("RUSH_REC_YDS", row, "nfl") == 65
+    assert set(grading.NFL_MARKETS) == set(odds.NFL_MARKETS)
+
+
+@needs_db
+def test_nfl_grading_end_to_end(conn):
+    import json
+    from pathlib import Path
+    from spm.nfl import boxscores as nfl_box
+    from spm.store import pg
+    game = json.loads((Path(__file__).parent / "fixtures" / "espn_nfl_game.json").read_text())
+    rows = nfl_box.parse_game(game["summary"], game["game_rosters"], game["names"], dt.date(2026, 10, 18))
+    pg.record(conn, [
+        nfl_offer("Trevor Lawrence", "PASS_YDS", 280.5, "JAX"),            # 306 -> over
+        nfl_offer("Trevor Lawrence", "ANYTIME_TD", 0.5, "JAX", 600, None),  # no rushing TD -> under
+        nfl_offer("Jaylin Noel", "REC", 4.5, "HOU"),                       # 4 -> under
+        nfl_offer("Jaylin Noel", "ANYTIME_TD", 0.5, "HOU", 350, None),     # 1 rec TD -> over
+        nfl_offer("Nico Collins", "RUSH_REC_YDS", 79.0, "HOU"),            # 5 + 74 = 79 -> push
+        nfl_offer("David Montgomery", "RUSH_YDS", 55.5, "HOU"),            # didn't play -> void
+    ])
+    tip = dt.datetime(2026, 10, 18, 13, 30, tzinfo=UTC)
+    assert grading.pending_events(conn, now=tip + dt.timedelta(hours=4), sport="nfl") == []   # may still be on
+    events = grading.pending_events(conn, now=tip + dt.timedelta(hours=5), sport="nfl")
+    assert grading.grade_events(conn, events, "nfl") == (0, 0, [events[0][0]])      # no box score loaded yet
+    assert grading.upsert_results(conn, rows, "nfl") == len(rows)
+    assert grading.grade_events(conn, events, "nfl") == (5, 1, [])
+    assert grades(conn) == [
+        ("David Montgomery", "RUSH_YDS", "DraftKings", 55.5, None, "void"),
+        ("Jaylin Noel", "ANYTIME_TD", "DraftKings", 0.5, 1.0, "over"),
+        ("Jaylin Noel", "REC", "DraftKings", 4.5, 4.0, "under"),
+        ("Nico Collins", "RUSH_REC_YDS", "DraftKings", 79.0, 79.0, "push"),
+        ("Trevor Lawrence", "ANYTIME_TD", "DraftKings", 0.5, 0.0, "under"),
+        ("Trevor Lawrence", "PASS_YDS", "DraftKings", 280.5, 306.0, "over"),
+    ]
+    assert grading.upsert_results(conn, rows, "nfl") == len(rows)                    # re-load is an upsert
+    assert grading.pending_events(conn, now=tip + dt.timedelta(hours=5), sport="nfl") == []

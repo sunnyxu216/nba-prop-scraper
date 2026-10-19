@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       check_source:
-        description: "Only check that the box-score source is reachable"
+        description: "Only check that the box-score sources (NBA, NFL) are reachable"
         type: boolean
         default: false
 

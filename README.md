@@ -113,7 +113,8 @@ Line collection, grading and health checks run on GitHub Actions and store every
 7. **Workflows** (Actions tab, dispatch-only; times are when Supabase triggers them, UTC):
    - **Collect lines**, hourly at :17: `scripts/collect.py` (Action Network -> `offers`, change-only), for
      NBA (games in the next 2 days) and NFL (next 7 days; props open 5-6 days before kickoff)
-   - **Grade lines**, 10:00 daily: `scripts/grade.py` (ESPN box scores -> `grades`, incremental)
+   - **Grade lines**, 10:00 daily: `scripts/grade.py` (ESPN box scores -> `grades`, incremental), NBA and
+     NFL (Monday night games end by ~04:00 UTC, so every game is final by then)
    - **Health**, 15:00 daily, checked per sport: fails (emails you) if collection is stale or grading is
      behind; Mondays posts a report to the "Health report" issue
    - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
@@ -132,7 +133,12 @@ select market, count(*) from offers where sport = 'nfl' group by 1;       -- NFL
 NFL lines are collected alongside NBA into the same tables (`sport = 'nfl'`). Markets: PASS_YDS, PASS_CMP,
 PASS_ATT, PASS_TD, INT, RUSH_YDS, RUSH_ATT, REC, REC_YDS, RUSH_REC_YDS and ANYTIME_TD. Anytime TD is a
 yes/no bet, stored as over 0.5 with `under_odds` null when the book posts no "no" price. NFL team codes
-follow nflverse (`spm/nfl/teams.py`). Grading, the model and the dashboard come next.
+follow nflverse (`spm/nfl/teams.py`).
+
+NFL grading uses ESPN: box-score stats, plus each team's game roster to tell who played. A player who
+played without recording a stat grades as 0 (a receiver with no targets loses an over); one who didn't
+play is void, as at the books. Anytime TD counts rushing, receiving, return and defensive TDs, not passing
+TDs. Box scores go to `results_nfl`. The model and the dashboard come next.
 
 ## How the model works
 
@@ -214,7 +220,7 @@ spm/reasoning.py    plain-English explanations
 spm/backtest.py     walk-forward backtest + calibration fit
 spm/props.py        props.csv storage
 spm/lineups.py      who's playing: rotations, absences, injury report
-spm/nfl/            NFL: team codes (data and model to follow)
+spm/nfl/            NFL: team codes, ESPN box scores for grading (data and model to follow)
 spm/odds/           odds sources behind one interface (Offer + OddsSource + registry)
   base.py           the interface; `source` and `licensed` decide what's usable commercially
   action_network.py dev-only scraped feed (licensed = False)
@@ -234,7 +240,8 @@ scripts/health.py   daily "Health" workflow: fails (emails you) on missing succe
 scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
                     offers_licensed view; 002_grading.sql: results, grades, grades_licensed view;
-                    003_nfl.sql: NFL sport, nullable under_odds for one-sided markets)
+                    003_nfl.sql: NFL sport, nullable under_odds for one-sided markets;
+                    004_nfl_results.sql: NFL box scores)
 .env.example        template for .env (DATABASE_URL, ODDS_API_KEY); .env is gitignored
 spm/service.py      glue used by the API
 tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`
