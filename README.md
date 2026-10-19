@@ -184,6 +184,9 @@ scripts/import_lines.py  one-time import of pre-Postgres line history
 spm/store/pg.py     Postgres storage: change-only writes in SQL, idempotent snapshots
 spm/store/grading.py  incremental grading: closing line (last price before tip) vs box score, once
 spm/boxscores.py    box scores for grading (stats.nba.com league game log, date-filtered)
+spm/store/health.py pipeline health: stale collection / grading backlog checks, weekly report
+scripts/health.py   daily "Health" workflow: fails (emails you) on missing success; Mondays posts a report
+                    to the "Health report" issue and re-enables scheduled workflows (60-day keepalive)
 scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
                     offers_licensed view; 002_grading.sql: results, grades, grades_licensed view)

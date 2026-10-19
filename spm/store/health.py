@@ -1,0 +1,80 @@
+"""Pipeline health: detect *missing* success, not just errors.
+
+A collector that silently stops running raises no error anywhere, so the
+checks look at what the database shows actually happened:
+
+* collection is stale: games are coming up but no line has been seen recently
+  (offers_current.last_seen is refreshed by every collector run, even when no
+  price moved, so it doubles as a heartbeat);
+* grading is behind: games that finished long ago still have ungraded lines.
+"""
+
+import datetime as dt
+
+STALE_AFTER = dt.timedelta(hours=3)       # collector runs hourly; allow for GitHub delays
+UPCOMING_WINDOW = dt.timedelta(hours=36)  # only expect fresh lines when games are this close
+GRADING_GRACE = dt.timedelta(hours=36)    # daily grader + box-score delays
+
+
+def status(conn, now=None):
+    now = now or dt.datetime.now(dt.timezone.utc)
+    with conn.cursor() as cur:
+        cur.execute("select max(last_seen) from offers_current")
+        last_seen = cur.fetchone()[0]
+        cur.execute("select count(*) from events where start_time between %s and %s",
+                    (now, now + UPCOMING_WINDOW))
+        upcoming = cur.fetchone()[0]
+        cur.execute("""
+            select count(distinct e.id) from events e
+            join offers o on o.event_id = e.id and o.observed_at < e.start_time
+            left join grades g on g.event_id = o.event_id and g.player_key = o.player_key
+                              and g.market = o.market and g.book = o.book
+            where e.start_time < %s and g.event_id is null""", (now - GRADING_GRACE,))
+        ungraded = cur.fetchone()[0]
+    return {"now": now, "last_seen": last_seen, "upcoming_games": upcoming, "ungraded_old_games": ungraded}
+
+
+def problems(s):
+    """Human-readable failures for a status() dict (empty list = healthy)."""
+    out = []
+    if s["upcoming_games"] and (s["last_seen"] is None or s["now"] - s["last_seen"] > STALE_AFTER):
+        age = "never" if s["last_seen"] is None else f"{(s['now'] - s['last_seen']).total_seconds() / 3600:.1f}h ago"
+        out.append(f"Collection is stale: {s['upcoming_games']} games in the next "
+                   f"{UPCOMING_WINDOW.total_seconds() / 3600:.0f}h, but lines were last seen {age}.")
+    if s["ungraded_old_games"]:
+        out.append(f"Grading is behind: {s['ungraded_old_games']} games finished over "
+                   f"{GRADING_GRACE.total_seconds() / 3600:.0f}h ago still have ungraded lines.")
+    return out
+
+
+def weekly_report(conn, now=None):
+    """Markdown summary of the last 7 days."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    since = now - dt.timedelta(days=7)
+    with conn.cursor() as cur:
+        def one(sql, *args):
+            cur.execute(sql, args)
+            return cur.fetchone()[0]
+        offers = one("select count(*) from offers where observed_at >= %s", since)
+        games = one("select count(*) from events where start_time >= %s and start_time < %s", since, now)
+        open_lines = one("select count(*) from offers_current where last_seen >= %s", now - dt.timedelta(hours=6))
+        cur.execute("""select result, count(*) from grades where graded_at >= %s group by 1 order by 1""", (since,))
+        grades = dict(cur.fetchall())
+        cur.execute("""select book, count(*) from offers where observed_at >= %s group by 1 order by 2 desc""",
+                    (since,))
+        books = cur.fetchall()
+        licensed = one("select count(*) from offers_licensed where observed_at >= %s", since)
+        size_mb = one("select pg_database_size(current_database())") / 1e6
+    lines = [
+        f"## Weekly health report ({since:%Y-%m-%d} to {now:%Y-%m-%d})", "",
+        "| | |", "|---|---|",
+        f"| Price changes recorded | {offers:,} |",
+        f"| Games played | {games} |",
+        f"| Open lines right now | {open_lines:,} |",
+        f"| Lines graded | {sum(grades.values()):,} "
+        f"({', '.join(f'{k} {v:,}' for k, v in grades.items()) or 'none'}) |",
+        f"| Books | {', '.join(f'{b} ({n:,})' for b, n in books) or 'none'} |",
+        f"| From licensed sources | {licensed:,} of {offers:,} |",
+        f"| Database size | {size_mb:.0f} MB of 500 MB free tier |",
+    ]
+    return "\n".join(lines)

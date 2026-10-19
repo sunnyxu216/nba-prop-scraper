@@ -1,0 +1,65 @@
+# Daily health check (a "dead man's switch") + weekly report + keepalive.
+#
+# - Daily: fails, and so emails you, if collection has gone stale while games
+#   are coming up, or if finished games are still ungraded.
+# - Mondays (or a manual run with "report" ticked): posts a weekly summary as a
+#   comment on the "Health report" issue, which GitHub emails to you.
+# - Weekly keepalive: re-enables the scheduled workflows. GitHub disables
+#   schedules on public repos after 60 days without repository activity.
+name: Health
+
+on:
+  schedule:
+    - cron: "0 15 * * *"   # 15:00 UTC daily (after the 10:00 grading run)
+  workflow_dispatch:
+    inputs:
+      report:
+        description: "Post the weekly report now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write     # weekly report comment
+  actions: write    # keepalive: re-enable scheduled workflows
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-collector.txt
+
+      - name: Is this the weekly run?
+        id: weekly
+        run: |
+          if [ "${{ inputs.report }}" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check health
+        run: python scripts/health.py ${{ steps.weekly.outputs.yes == 'true' && '--report' || '' }}
+
+      - name: Post weekly report
+        if: always() && steps.weekly.outputs.yes == 'true' && hashFiles('report.md') != ''
+        run: |
+          issue=$(gh issue list --state open --search "Health report in:title" --json number --jq '.[0].number')
+          if [ -z "$issue" ]; then
+            issue=$(gh issue create --title "Health report" \
+              --body "Weekly pipeline summaries are posted here as comments." | grep -o '[0-9]*$')
+          fi
+          gh issue comment "$issue" --body-file report.md
+
+      - name: Keepalive (re-enable scheduled workflows)
+        if: always() && steps.weekly.outputs.yes == 'true'
+        run: |
+          for wf in collect.yml grade.yml health.yml; do
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/$wf/enable" && echo "enabled $wf"
+          done
