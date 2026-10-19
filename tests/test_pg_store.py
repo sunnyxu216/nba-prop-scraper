@@ -50,7 +50,8 @@ def q(conn, sql):
 
 def test_migrations_apply_once(conn):
     assert pg.migrate(conn) == []
-    assert q(conn, "select version from schema_migrations") == [("001_init",)]
+    versions = [v for (v,) in q(conn, "select version from schema_migrations order by version")]
+    assert versions[0] == "001_init" and versions == sorted(set(versions))
 
 
 def test_first_snapshot_appends_everything(conn):

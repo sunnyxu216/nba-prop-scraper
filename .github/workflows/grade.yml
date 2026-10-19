@@ -1,0 +1,32 @@
+# Daily grading: settle closing lines of finished games against box scores.
+# Incremental: each run only grades games that haven't been graded yet, so a
+# missed or failed day is simply picked up by the next run.
+name: Grade lines
+
+on:
+  schedule:
+    - cron: "0 10 * * *"   # 10:00 UTC = 5-6am US Eastern, after every game has ended
+  workflow_dispatch:
+    inputs:
+      check_source:
+        description: "Only check that the box-score source is reachable"
+        type: boolean
+        default: false
+
+concurrency:
+  group: grade-lines
+  cancel-in-progress: false
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-collector.txt
+      - run: python scripts/grade.py ${{ inputs.check_source && '--check-source' || '' }}

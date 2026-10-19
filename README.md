@@ -182,8 +182,11 @@ scripts/collect.py  standalone cloud collector (GitHub Actions hourly); Postgres
 scripts/migrate.py  apply migrations/*.sql to DATABASE_URL and sync the odds-source registry
 scripts/import_lines.py  one-time import of pre-Postgres line history
 spm/store/pg.py     Postgres storage: change-only writes in SQL, idempotent snapshots
+spm/store/grading.py  incremental grading: closing line (last price before tip) vs box score, once
+spm/boxscores.py    box scores for grading (stats.nba.com league game log, date-filtered)
+scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
-                    offers_licensed view)
+                    offers_licensed view; 002_grading.sql: results, grades, grades_licensed view)
 .env.example        template for .env (DATABASE_URL, ODDS_API_KEY); .env is gitignored
 spm/service.py      glue used by the API
 tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`
