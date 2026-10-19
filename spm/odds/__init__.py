@@ -8,5 +8,6 @@ Adding a source = one new module with an @register'ed OddsSource subclass,
 imported below. Nothing else in the app changes.
 """
 
-from .base import MARKETS, OddsSource, Offer, enabled_sources, licensed_sources, register, registered  # noqa: F401
+from .base import (MARKETS, MARKETS_BY_SPORT, NFL_MARKETS, ONE_SIDED, OddsSource, Offer,  # noqa: F401
+                   enabled_sources, licensed_sources, register, registered)
 from . import action_network, the_odds_api  # noqa: F401,E402  (registers the adapters)

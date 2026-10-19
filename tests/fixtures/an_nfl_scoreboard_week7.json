@@ -1,0 +1,50 @@
+{
+ "games": [
+  {
+   "id": 290930,
+   "status": "scheduled",
+   "start_time": "2026-10-23T00:15:00.000Z",
+   "away_team_id": 129,
+   "home_team_id": 143,
+   "league_name": "nfl",
+   "type": "reg",
+   "season": 2026,
+   "week": 7,
+   "teams": [
+    {
+     "id": 129,
+     "abbr": "NE",
+     "full_name": "New England Patriots"
+    },
+    {
+     "id": 143,
+     "abbr": "CHI",
+     "full_name": "Chicago Bears"
+    }
+   ]
+  },
+  {
+   "id": 290822,
+   "status": "scheduled",
+   "start_time": "2026-10-25T13:30:00.000Z",
+   "away_team_id": 132,
+   "home_team_id": 152,
+   "league_name": "nfl",
+   "type": "reg",
+   "season": 2026,
+   "week": 7,
+   "teams": [
+    {
+     "id": 152,
+     "abbr": "NO",
+     "full_name": "New Orleans Saints"
+    },
+    {
+     "id": 132,
+     "abbr": "PIT",
+     "full_name": "Pittsburgh Steelers"
+    }
+   ]
+  }
+ ]
+}

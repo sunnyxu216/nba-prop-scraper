@@ -10,27 +10,32 @@ import datetime as dt
 import os
 from dataclasses import asdict, dataclass
 
-# Canonical prop markets (NBA). Adapters map their own market names onto these.
-MARKETS = ("PTS", "REB", "AST", "3PM", "STL", "BLK", "TOV", "PRA", "PR", "PA", "RA", "SB")
+# Canonical prop markets per sport. Adapters map their own market names onto these.
+MARKETS = ("PTS", "REB", "AST", "3PM", "STL", "BLK", "TOV", "PRA", "PR", "PA", "RA", "SB")  # NBA
+NFL_MARKETS = ("PASS_YDS", "PASS_CMP", "PASS_ATT", "PASS_TD", "INT", "RUSH_YDS", "RUSH_ATT",
+               "REC", "REC_YDS", "RUSH_REC_YDS", "ANYTIME_TD")
+MARKETS_BY_SPORT = {"nba": MARKETS, "nfl": NFL_MARKETS}
+# Yes/no markets, stored as over 0.5 ("yes"); books often post no "no" price, so under_odds may be None.
+ONE_SIDED = {"ANYTIME_TD"}
 
 
 @dataclass(frozen=True)
 class Offer:
     """One book's over/under price on one player prop, as observed at one moment."""
     source: str            # adapter name, e.g. "action_network"
-    sport: str             # "nba"
+    sport: str             # "nba", "nfl"
     event_id: str          # the source's own game id
-    start_time: str        # tip-off, UTC ISO 8601
-    home_team: str         # team codes as given by the source (e.g. "BOS")
+    start_time: str        # tip-off / kickoff, UTC ISO 8601
+    home_team: str         # team codes (NBA: as given by the source; NFL: spm/nfl/teams.py codes)
     away_team: str
     player_name: str
     source_player_id: str  # the source's own player id ("" if it has none)
     team: str              # player's team code if the source says, else ""
-    market: str            # one of MARKETS
+    market: str            # one of MARKETS_BY_SPORT[sport]
     book: str              # sportsbook display name, e.g. "DraftKings"
     line: float
     over_odds: int         # American odds
-    under_odds: int
+    under_odds: int | None  # None only for ONE_SIDED markets with no "no" price
     observed_at: str       # when this price was seen, UTC ISO 8601
 
     def as_dict(self):

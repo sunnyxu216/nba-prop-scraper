@@ -1,0 +1,1463 @@
+{
+ "core_bet_type_9_passing_yards": {
+  "player_props": {
+   "core_bet_type_9_passing_yards": [
+    {
+     "type": "core_bet_type_9_passing_yards",
+     "lines": {
+      "15": [
+       {
+        "side": "under",
+        "odds": -113,
+        "value": 252.5,
+        "player_id": 195321,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -111,
+        "value": 252.5,
+        "player_id": 195321,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "68": [
+       {
+        "side": "under",
+        "odds": -112,
+        "value": 252.5,
+        "player_id": 195321,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -112,
+        "value": 252.5,
+        "player_id": 195321,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "69": [
+       {
+        "side": "over",
+        "odds": -113,
+        "value": 249.5,
+        "player_id": 195321,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -113,
+        "value": 249.5,
+        "player_id": 195321,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "71": [
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 247.5,
+        "player_id": 195321,
+        "book_id": 71,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 247.5,
+        "player_id": 195321,
+        "book_id": 71,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "75": [
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 256.5,
+        "player_id": 195321,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 256.5,
+        "player_id": 195321,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "79": [
+       {
+        "side": "under",
+        "odds": -120,
+        "value": 251.5,
+        "player_id": 195321,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -110,
+        "value": 251.5,
+        "player_id": 195321,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "123": [
+       {
+        "side": "over",
+        "odds": -118,
+        "value": 251.5,
+        "player_id": 195321,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -112,
+        "value": 251.5,
+        "player_id": 195321,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "247": [
+       {
+        "side": "under",
+        "odds": -111,
+        "value": 249.5,
+        "player_id": 195321,
+        "book_id": 247,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -114,
+        "value": 249.5,
+        "player_id": 195321,
+        "book_id": 247,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "1929": [
+       {
+        "side": "under",
+        "odds": -114,
+        "value": 247.5,
+        "player_id": 195321,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -113,
+        "value": 247.5,
+        "player_id": 195321,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "2724": [
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 253.5,
+        "player_id": 195321,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 253.5,
+        "player_id": 195321,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "2988": [
+       {
+        "side": "under",
+        "odds": -120,
+        "value": 250.5,
+        "player_id": 195321,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -110,
+        "value": 250.5,
+        "player_id": 195321,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "4795": [
+       {
+        "side": "under",
+        "odds": -100,
+        "value": 149.5,
+        "player_id": 195321,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -100,
+        "value": 149.5,
+        "player_id": 195321,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ]
+     },
+     "player_id": 195321,
+     "team_id": 154
+    },
+    {
+     "type": "core_bet_type_9_passing_yards",
+     "lines": {
+      "15": [
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "68": [
+       {
+        "side": "over",
+        "odds": -112,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -112,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "69": [
+       {
+        "side": "under",
+        "odds": -113,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -113,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "71": [
+       {
+        "side": "over",
+        "odds": -117,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 71,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -114,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 71,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "75": [
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "79": [
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "123": [
+       {
+        "side": "over",
+        "odds": -120,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -112,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "247": [
+       {
+        "side": "over",
+        "odds": -114,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 247,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -111,
+        "value": 209.5,
+        "player_id": 277039,
+        "book_id": 247,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "1929": [
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -113,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "2724": [
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "2988": [
+       {
+        "side": "over",
+        "odds": -115,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -115,
+        "value": 210.5,
+        "player_id": 277039,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ],
+      "4795": [
+       {
+        "side": "over",
+        "odds": -100,
+        "value": 99.5,
+        "player_id": 277039,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       },
+       {
+        "side": "under",
+        "odds": -100,
+        "value": 99.5,
+        "player_id": 277039,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_9_passing_yards"
+       }
+      ]
+     },
+     "player_id": 277039,
+     "team_id": 145
+    }
+   ]
+  },
+  "players": [
+   {
+    "id": 195321,
+    "full_name": "Brock Purdy",
+    "team_id": 154,
+    "abbr": "B.Purdy"
+   },
+   {
+    "id": 277039,
+    "full_name": "Jayden Daniels",
+    "team_id": 145,
+    "abbr": "J.Daniels"
+   }
+  ]
+ },
+ "core_bet_type_15_receptions": {
+  "player_props": {
+   "core_bet_type_15_receptions": [
+    {
+     "type": "core_bet_type_15_receptions",
+     "lines": {
+      "15": [
+       {
+        "side": "over",
+        "odds": 135,
+        "value": 1.5,
+        "player_id": 789,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -170,
+        "value": 1.5,
+        "player_id": 789,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "79": [
+       {
+        "side": "under",
+        "odds": -180,
+        "value": 1.5,
+        "player_id": 789,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": 145,
+        "value": 1.5,
+        "player_id": 789,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ]
+     },
+     "player_id": 789,
+     "team_id": 154
+    },
+    {
+     "type": "core_bet_type_15_receptions",
+     "lines": {
+      "15": [
+       {
+        "side": "over",
+        "odds": -165,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": 126,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "68": [
+       {
+        "side": "over",
+        "odds": 127,
+        "value": 4.5,
+        "player_id": 1703,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -163,
+        "value": 4.5,
+        "player_id": 1703,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "69": [
+       {
+        "side": "under",
+        "odds": 124,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": -166,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "75": [
+       {
+        "side": "under",
+        "odds": 115,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": -155,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "79": [
+       {
+        "side": "under",
+        "odds": 130,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": -165,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "123": [
+       {
+        "side": "over",
+        "odds": 125,
+        "value": 4.5,
+        "player_id": 1703,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -160,
+        "value": 4.5,
+        "player_id": 1703,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "1929": [
+       {
+        "side": "over",
+        "odds": -162,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": 125,
+        "value": 3.5,
+        "player_id": 1703,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "2988": [
+       {
+        "side": "under",
+        "odds": -155,
+        "value": 4.5,
+        "player_id": 1703,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": 115,
+        "value": 4.5,
+        "player_id": 1703,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ]
+     },
+     "player_id": 1703,
+     "team_id": 145
+    },
+    {
+     "type": "core_bet_type_15_receptions",
+     "lines": {
+      "15": [
+       {
+        "side": "under",
+        "odds": -172,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": 132,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "68": [
+       {
+        "side": "under",
+        "odds": 115,
+        "value": 4.5,
+        "player_id": 1750,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": -147,
+        "value": 4.5,
+        "player_id": 1750,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "69": [
+       {
+        "side": "over",
+        "odds": 120,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -160,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "79": [
+       {
+        "side": "over",
+        "odds": 145,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -185,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "123": [
+       {
+        "side": "over",
+        "odds": 145,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -190,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "1929": [
+       {
+        "side": "over",
+        "odds": 117,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "under",
+        "odds": -150,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 1929,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "2988": [
+       {
+        "side": "under",
+        "odds": -165,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": 120,
+        "value": 5.5,
+        "player_id": 1750,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ],
+      "4795": [
+       {
+        "side": "under",
+        "odds": -100,
+        "value": 2.5,
+        "player_id": 1750,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       },
+       {
+        "side": "over",
+        "odds": -100,
+        "value": 2.5,
+        "player_id": 1750,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_15_receptions"
+       }
+      ]
+     },
+     "player_id": 1750,
+     "team_id": 154
+    }
+   ]
+  },
+  "players": [
+   {
+    "id": 789,
+    "full_name": "Kyle Juszczyk",
+    "team_id": 154,
+    "abbr": "K.Juszczyk"
+   },
+   {
+    "id": 1703,
+    "full_name": "Stefon Diggs",
+    "team_id": 145,
+    "abbr": "S.Diggs"
+   },
+   {
+    "id": 1750,
+    "full_name": "Mike Evans",
+    "team_id": 154,
+    "abbr": "M.Evans"
+   }
+  ]
+ },
+ "core_bet_type_62_anytime_touchdown_scorer": {
+  "player_props": {
+   "core_bet_type_62_anytime_touchdown_scorer": [
+    {
+     "type": "core_bet_type_62_anytime_touchdown_scorer",
+     "lines": {
+      "15": [
+       {
+        "side": "noside",
+        "odds": 500,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "68": [
+       {
+        "side": "noside",
+        "odds": 475,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "69": [
+       {
+        "side": "noside",
+        "odds": 550,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "75": [
+       {
+        "side": "noside",
+        "odds": 575,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "79": [
+       {
+        "side": "noside",
+        "odds": 500,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "123": [
+       {
+        "side": "noside",
+        "odds": 500,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2724": [
+       {
+        "side": "noside",
+        "odds": 475,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2988": [
+       {
+        "side": "noside",
+        "odds": 550,
+        "value": 0,
+        "player_id": 789,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ]
+     },
+     "player_id": 789,
+     "team_id": 154
+    },
+    {
+     "type": "core_bet_type_62_anytime_touchdown_scorer",
+     "lines": {
+      "15": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "68": [
+       {
+        "side": "noside",
+        "odds": 255,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "69": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "75": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "79": [
+       {
+        "side": "noside",
+        "odds": 220,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "123": [
+       {
+        "side": "noside",
+        "odds": 240,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2724": [
+       {
+        "side": "noside",
+        "odds": -375,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2988": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1703,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ]
+     },
+     "player_id": 1703,
+     "team_id": 145
+    },
+    {
+     "type": "core_bet_type_62_anytime_touchdown_scorer",
+     "lines": {
+      "15": [
+       {
+        "side": "noside",
+        "odds": -117,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "68": [
+       {
+        "side": "noside",
+        "odds": -115,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "69": [
+       {
+        "side": "noside",
+        "odds": -120,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "75": [
+       {
+        "side": "noside",
+        "odds": -115,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "79": [
+       {
+        "side": "noside",
+        "odds": -125,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "123": [
+       {
+        "side": "noside",
+        "odds": -117,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2724": [
+       {
+        "side": "noside",
+        "odds": -125,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2988": [
+       {
+        "side": "noside",
+        "odds": -125,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "4795": [
+       {
+        "side": "noside",
+        "odds": -104,
+        "value": 0,
+        "player_id": 1750,
+        "book_id": 4795,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ]
+     },
+     "player_id": 1750,
+     "team_id": 154
+    },
+    {
+     "type": "core_bet_type_62_anytime_touchdown_scorer",
+     "lines": {
+      "15": [
+       {
+        "side": "noside",
+        "odds": 265,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 15,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "68": [
+       {
+        "side": "noside",
+        "odds": 265,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 68,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "69": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 69,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "75": [
+       {
+        "side": "noside",
+        "odds": 280,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 75,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "79": [
+       {
+        "side": "noside",
+        "odds": 255,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 79,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "123": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 123,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2724": [
+       {
+        "side": "noside",
+        "odds": -375,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 2724,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ],
+      "2988": [
+       {
+        "side": "noside",
+        "odds": 250,
+        "value": 0,
+        "player_id": 1912,
+        "book_id": 2988,
+        "is_live": false,
+        "is_alt_market": false,
+        "type": "core_bet_type_62_anytime_touchdown_scorer"
+       }
+      ]
+     },
+     "player_id": 1912,
+     "team_id": 154
+    }
+   ]
+  },
+  "players": [
+   {
+    "id": 789,
+    "full_name": "Kyle Juszczyk",
+    "team_id": 154,
+    "abbr": "K.Juszczyk"
+   },
+   {
+    "id": 1703,
+    "full_name": "Stefon Diggs",
+    "team_id": 145,
+    "abbr": "S.Diggs"
+   },
+   {
+    "id": 1750,
+    "full_name": "Mike Evans",
+    "team_id": 154,
+    "abbr": "M.Evans"
+   },
+   {
+    "id": 1912,
+    "full_name": "Brandin Cooks",
+    "team_id": 154,
+    "abbr": "B.Cooks"
+   }
+  ]
+ }
+}

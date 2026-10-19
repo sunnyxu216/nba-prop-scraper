@@ -1,0 +1,6 @@
+[
+  {"id": "n1", "sport_key": "americanfootball_nfl", "commence_time": "2026-10-23T00:15:00Z",
+   "home_team": "Chicago Bears", "away_team": "New England Patriots"},
+  {"id": "n_far", "sport_key": "americanfootball_nfl", "commence_time": "2030-01-01T00:00:00Z",
+   "home_team": "Pittsburgh Steelers", "away_team": "New Orleans Saints"}
+]

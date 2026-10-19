@@ -1,0 +1,50 @@
+{
+ "games": [
+  {
+   "id": 290917,
+   "status": "complete",
+   "start_time": "2026-10-16T00:15:00.000Z",
+   "away_team_id": 156,
+   "home_team_id": 136,
+   "league_name": "nfl",
+   "type": "reg",
+   "season": 2026,
+   "week": 6,
+   "teams": [
+    {
+     "id": 136,
+     "abbr": "DEN",
+     "full_name": "Denver Broncos"
+    },
+    {
+     "id": 156,
+     "abbr": "SEA",
+     "full_name": "Seattle Seahawks"
+    }
+   ]
+  },
+  {
+   "id": 290929,
+   "status": "scheduled",
+   "start_time": "2026-10-20T00:15:00.000Z",
+   "away_team_id": 145,
+   "home_team_id": 154,
+   "league_name": "nfl",
+   "type": "reg",
+   "season": 2026,
+   "week": 6,
+   "teams": [
+    {
+     "id": 145,
+     "abbr": "WAS",
+     "full_name": "Washington Commanders"
+    },
+    {
+     "id": 154,
+     "abbr": "SF",
+     "full_name": "San Francisco 49ers"
+    }
+   ]
+  }
+ ]
+}

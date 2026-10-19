@@ -14,10 +14,14 @@ import pytest
 
 from spm import odds
 from spm.data import TEAMS
+from spm.nfl import teams as nfl_teams
 from spm.odds import action_network as an
 from spm.odds import the_odds_api as toa
 
 FIXTURES = Path(__file__).parent / "fixtures"
+SPORT_TEAMS = {"nba": TEAMS, "nfl": nfl_teams.TEAMS}
+NFL_NOW = dt.datetime(2026, 10, 19, 18, 0, tzinfo=dt.timezone.utc)   # Monday of Week 6 (recorded fixtures)
+DAYS = {"nba": 2, "nfl": 7}
 
 
 def load(name):
@@ -25,9 +29,10 @@ def load(name):
 
 
 def an_http(fail_market=None):
-    """Fake Action Network: serves today's scoreboard and the recorded points market."""
-    books = load("an_books.json")
+    """Fake Action Network: today's NBA scoreboard + recorded points market; the recorded NFL weeks + props."""
+    books = load("an_books.json") | load("an_nfl_books.json")
     today = dt.date.today().strftime("%Y%m%d")
+    nfl_props = load("an_nfl_props_game.json")
 
     def http(url, params=None, headers=None):
         params = params or {}
@@ -35,26 +40,35 @@ def an_http(fail_market=None):
             return {"books": [{"id": int(k), "display_name": v} for k, v in books.items()]}
         if url.endswith("/v1/scoreboard/nba"):
             return load("an_scoreboard.json") if params.get("date") == today else {"games": []}
+        if url.endswith("/v1/scoreboard/nfl"):
+            return load("an_nfl_scoreboard_week7.json" if params.get("week") == 7 else "an_nfl_scoreboard.json")
+        if url.endswith("/v2/games/290929/props"):
+            return nfl_props.get(params.get("customPickType"), {"player_props": {}})
         if url.endswith("/v2/games/295136/props"):
             if params.get("customPickType") == fail_market:
                 raise RuntimeError("HTTP 503")
             if params.get("customPickType") == "core_bet_type_27_points":
                 return load("an_points_game.json")
             return {"player_props": {}}
+        if url.endswith("/props") and "/v2/games/" in url:
+            return {"player_props": {}}            # the other NFL games: no props recorded
         raise AssertionError(f"unexpected request {url}")
     return http
 
 
 def toa_http(url, params=None, headers=None):
+    nfl = "/americanfootball_nfl/" in url
     if url.endswith("/events"):
-        return load("odds_api_events.json")
+        return load("odds_api_nfl_events.json" if nfl else "odds_api_events.json")
     if url.endswith("/events/e1/odds"):
         return load("odds_api_event_odds.json")
+    if url.endswith("/events/n1/odds"):
+        return load("odds_api_nfl_event_odds.json")
     raise AssertionError(f"unexpected request {url}")
 
 
 ADAPTERS = {
-    "action_network": lambda: an.ActionNetwork(http=an_http(), delay=0),
+    "action_network": lambda: an.ActionNetwork(http=an_http(), delay=0, now=lambda: NFL_NOW),
     "the_odds_api": lambda: toa.TheOddsAPI(http=toa_http, cfg={**toa.DEFAULT_CONFIG, "odds_api_key": "test"}),
 }
 
@@ -63,10 +77,16 @@ def test_every_registered_source_has_a_contract_test():
     assert set(ADAPTERS) == set(odds.registered())
 
 
-@pytest.fixture(params=sorted(ADAPTERS))
+def test_every_source_supports_every_sport():
+    for make in ADAPTERS.values():
+        assert set(make().sports) == set(odds.MARKETS_BY_SPORT)
+
+
+@pytest.fixture(params=[(name, sport) for name in sorted(ADAPTERS) for sport in DAYS])
 def fetched(request):
-    source = ADAPTERS[request.param]()
-    return source, source.fetch("nba", days=2)
+    name, sport = request.param
+    source = ADAPTERS[name]()
+    return source, sport, source.fetch(sport, days=DAYS[sport])
 
 
 def parse_utc(s):
@@ -74,26 +94,28 @@ def parse_utc(s):
 
 
 def test_returns_offers(fetched):
-    source, offers = fetched
+    source, sport, offers = fetched
     assert offers and all(isinstance(o, odds.Offer) for o in offers)
 
 
 def test_offer_fields(fetched):
-    source, offers = fetched
+    source, sport, offers = fetched
     for o in offers:
-        assert o.source == source.name and o.sport == "nba"
-        assert o.market in odds.MARKETS
+        assert o.source == source.name and o.sport == sport
+        assert o.market in odds.MARKETS_BY_SPORT[sport]
         assert o.player_name and o.book and o.event_id
-        assert o.home_team in TEAMS and o.away_team in TEAMS
+        assert o.home_team in SPORT_TEAMS[sport] and o.away_team in SPORT_TEAMS[sport]
         assert o.team in ("", o.home_team, o.away_team)
         assert isinstance(o.line, float) and (o.line * 2).is_integer()
-        for price in (o.over_odds, o.under_odds):
+        prices = (o.over_odds,) if o.under_odds is None else (o.over_odds, o.under_odds)
+        assert o.under_odds is not None or o.market in odds.ONE_SIDED
+        for price in prices:
             assert isinstance(price, int) and (price <= -100 or price >= 100)
         assert parse_utc(o.start_time).tzinfo and parse_utc(o.observed_at).tzinfo
 
 
 def test_no_duplicate_offers(fetched):
-    _, offers = fetched
+    _, _, offers = fetched
     keys = [(o.event_id, o.player_name, o.market, o.book, o.line) for o in offers]
     assert len(keys) == len(set(keys))
 
