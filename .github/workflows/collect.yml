@@ -1,15 +1,13 @@
 # Hourly line collection, off the user's PC.
+# Triggered hourly at :17 UTC by Supabase pg_cron (scripts/setup_scheduler.py), which
+# calls GitHub's workflow_dispatch API; GitHub's own cron never fired for this repo.
 #
 # With the DATABASE_URL repository secret set, offers go to Postgres (Supabase)
 # after applying any pending migrations. Without it, they go to the `data`
 # branch as daily CSVs (one per UTC day under offers/).
-# GitHub's scheduler is "roughly on time": runs can start late or be skipped,
-# and times are UTC.
 name: Collect lines
 
 on:
-  schedule:
-    - cron: "17 * * * *"   # every hour at :17 (avoids the top-of-hour rush)
   workflow_dispatch:
 
 permissions:

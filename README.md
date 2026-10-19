@@ -104,11 +104,17 @@ Line collection, grading and health checks run on GitHub Actions and store every
 4. **GitHub:** repo Settings -> Secrets and variables -> Actions -> New repository secret
    `DATABASE_URL` = the same string (value only, without `DATABASE_URL=`).
 5. **History (optional):** `python scripts/import_lines.py` imports older CSV line history.
-6. **Workflows** (Actions tab), all scheduled in UTC:
+6. **Scheduler:** GitHub's own cron never fired for this repo, so Supabase triggers the workflows.
+   Create a fine-grained GitHub token for this repo only with **Actions: Read and write**, put it in
+   `.env` as `GITHUB_DISPATCH_TOKEN=`, then run `python scripts/setup_scheduler.py`. It enables
+   `pg_cron` + `pg_net`, stores the token in Supabase Vault and schedules the three jobs below
+   (`--status` shows recent runs and GitHub's responses; `--test` dispatches Collect once).
+   The token expires: renew it and re-run the script before then.
+7. **Workflows** (Actions tab, dispatch-only; times are when Supabase triggers them, UTC):
    - **Collect lines**, hourly at :17: `scripts/collect.py` (Action Network -> `offers`, change-only)
    - **Grade lines**, 10:00 daily: `scripts/grade.py` (ESPN box scores -> `grades`, incremental)
    - **Health**, 15:00 daily: fails (emails you) if collection is stale or grading is behind; Mondays
-     posts a report to the "Health report" issue and re-enables the schedules (60-day keepalive)
+     posts a report to the "Health report" issue
    - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
 
 Useful queries in Supabase's SQL editor:

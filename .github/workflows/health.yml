@@ -1,16 +1,14 @@
-# Daily health check (a "dead man's switch") + weekly report + keepalive.
+# Daily health check (a "dead man's switch") + weekly report.
 #
 # - Daily: fails, and so emails you, if collection has gone stale while games
 #   are coming up, or if finished games are still ungraded.
 # - Mondays (or a manual run with "report" ticked): posts a weekly summary as a
 #   comment on the "Health report" issue, which GitHub emails to you.
-# - Weekly keepalive: re-enables the scheduled workflows. GitHub disables
-#   schedules on public repos after 60 days without repository activity.
+# Triggered daily at 15:00 UTC by Supabase pg_cron (scripts/setup_scheduler.py).
+# (The workflows are dispatch-only, so GitHub's 60-day schedule shutoff doesn't apply.)
 name: Health
 
 on:
-  schedule:
-    - cron: "0 15 * * *"   # 15:00 UTC daily (after the 10:00 grading run)
   workflow_dispatch:
     inputs:
       report:
@@ -21,7 +19,6 @@ on:
 permissions:
   contents: read
   issues: write     # weekly report comment
-  actions: write    # keepalive: re-enable scheduled workflows
 
 jobs:
   health:
@@ -57,9 +54,3 @@ jobs:
           fi
           gh issue comment "$issue" --body-file report.md
 
-      - name: Keepalive (re-enable scheduled workflows)
-        if: always() && steps.weekly.outputs.yes == 'true'
-        run: |
-          for wf in collect.yml grade.yml health.yml; do
-            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/$wf/enable" && echo "enabled $wf"
-          done
