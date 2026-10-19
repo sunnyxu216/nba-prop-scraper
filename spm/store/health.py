@@ -7,6 +7,8 @@ checks look at what the database shows actually happened:
   (offers_current.last_seen is refreshed by every collector run, even when no
   price moved, so it doubles as a heartbeat);
 * grading is behind: games that finished long ago still have ungraded lines.
+
+Checked per sport, so one sport's healthy collector can't hide another's broken one.
 """
 
 import datetime as dt
@@ -16,22 +18,32 @@ UPCOMING_WINDOW = dt.timedelta(hours=36)  # only expect fresh lines when games a
 GRADING_GRACE = dt.timedelta(hours=36)    # daily grader + box-score delays
 
 
-def status(conn, now=None):
+def status(conn, now=None, sport=None, check_grading=True):
+    """Health inputs for one sport (or all sports when sport is None).
+
+    check_grading=False for sports without a grader yet: their lines are expected to stay ungraded.
+    """
     now = now or dt.datetime.now(dt.timezone.utc)
+    # "%s is null or sport = %s": one query for both "this sport" and "every sport"
     with conn.cursor() as cur:
-        cur.execute("select max(last_seen) from offers_current")
+        cur.execute("select max(last_seen) from offers_current where %s::text is null or sport = %s",
+                    (sport, sport))
         last_seen = cur.fetchone()[0]
-        cur.execute("select count(*) from events where start_time between %s and %s",
-                    (now, now + UPCOMING_WINDOW))
+        cur.execute("select count(*) from events where start_time between %s and %s "
+                    "and (%s::text is null or sport = %s)", (now, now + UPCOMING_WINDOW, sport, sport))
         upcoming = cur.fetchone()[0]
-        cur.execute("""
-            select count(distinct e.id) from events e
-            join offers o on o.event_id = e.id and o.observed_at < e.start_time
-            left join grades g on g.event_id = o.event_id and g.player_key = o.player_key
-                              and g.market = o.market and g.book = o.book
-            where e.start_time < %s and g.event_id is null""", (now - GRADING_GRACE,))
-        ungraded = cur.fetchone()[0]
-    return {"now": now, "last_seen": last_seen, "upcoming_games": upcoming, "ungraded_old_games": ungraded}
+        ungraded = 0
+        if check_grading:
+            cur.execute("""
+                select count(distinct e.id) from events e
+                join offers o on o.event_id = e.id and o.observed_at < e.start_time
+                left join grades g on g.event_id = o.event_id and g.player_key = o.player_key
+                                  and g.market = o.market and g.book = o.book
+                where e.start_time < %s and g.event_id is null
+                  and (%s::text is null or e.sport = %s)""", (now - GRADING_GRACE, sport, sport))
+            ungraded = cur.fetchone()[0]
+    return {"now": now, "sport": sport, "last_seen": last_seen, "upcoming_games": upcoming,
+            "ungraded_old_games": ungraded}
 
 
 def problems(s):
@@ -63,12 +75,15 @@ def weekly_report(conn, now=None):
         cur.execute("""select book, count(*) from offers where observed_at >= %s group by 1 order by 2 desc""",
                     (since,))
         books = cur.fetchall()
+        cur.execute("""select sport, count(*) from offers where observed_at >= %s group by 1 order by 1""", (since,))
+        by_sport = cur.fetchall()
         licensed = one("select count(*) from offers_licensed where observed_at >= %s", since)
         size_mb = one("select pg_database_size(current_database())") / 1e6
     lines = [
         f"## Weekly health report ({since:%Y-%m-%d} to {now:%Y-%m-%d})", "",
         "| | |", "|---|---|",
-        f"| Price changes recorded | {offers:,} |",
+        f"| Price changes recorded | {offers:,} "
+        f"({', '.join(f'{s.upper()} {n:,}' for s, n in by_sport) or 'none'}) |",
         f"| Games played | {games} |",
         f"| Open lines right now | {open_lines:,} |",
         f"| Lines graded | {sum(grades.values()):,} "

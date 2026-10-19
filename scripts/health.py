@@ -15,7 +15,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from spm import envfile  # noqa: E402
-from spm.store import health, pg  # noqa: E402
+from spm.store import grading, health, pg  # noqa: E402
+
+SPORTS = ("nba", "nfl")
 
 
 def main():
@@ -24,17 +26,16 @@ def main():
     args = ap.parse_args()
     envfile.load()
     with pg.connect() as conn:
-        s = health.status(conn)
-        found = health.problems(s)
+        statuses = [health.status(conn, sport=sp, check_grading=sp in grading.GRADED_SPORTS) for sp in SPORTS]
         report = health.weekly_report(conn) if args.report else ""
-    last = s["last_seen"].strftime("%Y-%m-%d %H:%M UTC") if s["last_seen"] else "never"
-    summary = [
-        "## Pipeline health: " + ("FAILING" if found else "OK"), "",
-        f"- Lines last seen: {last}",
-        f"- Games in the next 36h: {s['upcoming_games']}",
-        f"- Old games still ungraded: {s['ungraded_old_games']}",
-        *[f"- **{p}**" for p in found],
-    ]
+    found = [f"{s['sport'].upper()}: {p}" for s in statuses for p in health.problems(s)]
+    summary = ["## Pipeline health: " + ("FAILING" if found else "OK"), ""]
+    for s in statuses:
+        last = s["last_seen"].strftime("%Y-%m-%d %H:%M UTC") if s["last_seen"] else "never"
+        graded = s["ungraded_old_games"] if s["sport"] in grading.GRADED_SPORTS else "not graded yet"
+        summary.append(f"- {s['sport'].upper()}: lines last seen {last}; games in the next 36h: "
+                       f"{s['upcoming_games']}; old games still ungraded: {graded}")
+    summary += [f"- **{p}**" for p in found]
     text = "\n".join(summary) + ("\n\n" + report if report else "")
     print(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):

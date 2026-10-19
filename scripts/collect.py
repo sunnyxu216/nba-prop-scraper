@@ -6,8 +6,9 @@ source gives them; matching them to NBA player ids happens later, at grading.
 
 Settings (environment variables):
   ODDS_SOURCES    comma-separated adapters (default: every available one)
-  SPORT           default "nba"
-  DAYS_AHEAD      days of games to fetch, default 2
+  SPORTS          comma-separated sports, default "nba" (SPORT, singular, also accepted)
+  DAYS_AHEAD_<SPORT>  days of games to fetch for one sport, e.g. DAYS_AHEAD_NFL=7
+  DAYS_AHEAD      fallback for sports without their own setting (defaults: nba 2, nfl 7)
   STATE_CODE      Action Network state for book availability, default "NJ"
   REQUEST_DELAY   seconds between Action Network requests, default 0.25
   DATABASE_URL    Postgres (Supabase). When set, offers go to the database;
@@ -20,7 +21,7 @@ line/price moved since it was last seen. In Postgres that comparison happens in
 SQL inside one transaction (spm/store/pg.py); the CSV fallback keeps one file
 per UTC day (OUT_DIR/YYYY-MM-DD.csv).
 
-Exit codes: 0 = ok (including "no games"), 1 = every source failed.
+Exit codes: 0 = ok (including "no games"), 1 = every source failed for every sport.
 """
 
 import csv
@@ -37,13 +38,16 @@ from spm.odds import action_network  # noqa: E402
 FIELDS = ["observed_at", "source", "sport", "event_id", "start_time", "home_team", "away_team",
           "player_name", "source_player_id", "team", "market", "book", "line", "over_odds", "under_odds"]
 LOOKBACK_DAYS = 3  # how far back to look for an offer's previous price
+DEFAULT_DAYS = {"nba": 2, "nfl": 7}   # NFL props open 5-6 days before kickoff
 
 
 def settings():
     env = os.environ.get
+    sports = [s.strip().lower() for s in (env("SPORTS") or env("SPORT") or "nba").split(",") if s.strip()]
     return {
-        "sport": env("SPORT", "nba"),
-        "days": int(env("DAYS_AHEAD", "2")),
+        "sports": sports,
+        "days": {sp: int(env(f"DAYS_AHEAD_{sp.upper()}") or env("DAYS_AHEAD") or DEFAULT_DAYS.get(sp, 2))
+                 for sp in sports},
         "state": env("STATE_CODE", "NJ"),
         "delay": float(env("REQUEST_DELAY", "0.25")),
         "out_dir": env("OUT_DIR", os.path.join("data", "offers")),
@@ -56,7 +60,8 @@ def offer_key(row):
 
 
 def price(row):
-    return (str(float(row["line"])), str(int(row["over_odds"])), str(int(row["under_odds"])))
+    under = row["under_odds"]   # None / "" for one-sided markets (Anytime TD)
+    return (str(float(row["line"])), str(int(row["over_odds"])), "" if under in (None, "") else str(int(under)))
 
 
 def last_prices(out_dir, today):
@@ -103,18 +108,23 @@ def main():
         print("No odds sources available (check ODDS_SOURCES / ODDS_API_KEY).")
         return 1
 
-    offers, failed = [], 0
-    for s in sources:
-        try:
-            got = s.fetch(cfg["sport"], days=cfg["days"])
-        except Exception as e:
-            failed += 1
-            print(f"::error::{s.name} failed: {e}")
-            continue
-        offers += got
-        print(f"{s.name}: {len(got)} offers")
-        for err in s.errors[:10]:
-            print(f"::warning::{s.name}: {err}")
+    offers, tried, failed = [], 0, 0
+    for sport in cfg["sports"]:
+        for s in sources:
+            if sport not in s.sports:
+                print(f"{s.name}: doesn't cover {sport}, skipped")
+                continue
+            tried += 1
+            try:   # one sport or source failing never loses the others' offers
+                got = s.fetch(sport, days=cfg["days"][sport])
+            except Exception as e:
+                failed += 1
+                print(f"::error::{s.name} {sport} failed: {e}")
+                continue
+            offers += got
+            print(f"{s.name} {sport}: {len(got)} offers")
+            for err in s.errors[:10]:
+                print(f"::warning::{s.name} {sport}: {err}")
 
     if os.environ.get("DATABASE_URL"):
         from spm.store import pg
@@ -125,7 +135,7 @@ def main():
         today = dt.datetime.now(dt.timezone.utc).date()
         written = record(offers, cfg["out_dir"], today)
         print(f"{written} new or moved offers written to {cfg['out_dir']}/{today.isoformat()}.csv")
-    return 1 if failed == len(sources) else 0
+    return 1 if failed == tried else 0
 
 
 if __name__ == "__main__":

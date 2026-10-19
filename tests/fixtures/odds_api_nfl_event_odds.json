@@ -1,0 +1,26 @@
+{
+  "_note": "Hand-built from The Odds API v4 docs (event-odds response shape, NFL player markets); replace with a recorded response once a key exists.",
+  "id": "n1",
+  "bookmakers": [
+    {"key": "draftkings", "title": "DraftKings", "markets": [
+      {"key": "player_pass_yds", "outcomes": [
+        {"name": "Over", "description": "Caleb Williams", "price": -115, "point": 231.5},
+        {"name": "Under", "description": "Caleb Williams", "price": -105, "point": 231.5}
+      ]},
+      {"key": "player_receptions", "outcomes": [
+        {"name": "Over", "description": "Stefon Diggs", "price": 120, "point": 4.5},
+        {"name": "Under", "description": "Stefon Diggs", "price": -150, "point": 4.5},
+        {"name": "Over", "description": "DJ Moore", "price": -110, "point": 5.5}
+      ]},
+      {"key": "player_anytime_td", "outcomes": [
+        {"name": "Yes", "description": "D'Andre Swift", "price": 140},
+        {"name": "Yes", "description": "Rhamondre Stevenson", "price": 165},
+        {"name": "No", "description": "Rhamondre Stevenson", "price": -210}
+      ]},
+      {"key": "player_kicking_points", "outcomes": [
+        {"name": "Over", "description": "Cairo Santos", "price": -110, "point": 7.5},
+        {"name": "Under", "description": "Cairo Santos", "price": -110, "point": 7.5}
+      ]}
+    ]}
+  ]
+}
