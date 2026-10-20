@@ -32,6 +32,7 @@ JOBS = [  # (pg_cron job name, cron in UTC, workflow file)
     ("collect-lines", "17 * * * *", "collect.yml"),
     ("grade-lines", "0 10 * * *", "grade.yml"),
     ("health", "0 15 * * *", "health.yml"),
+    ("score-nfl", "37 * * * *", "score-nfl.yml"),   # 20 min after collection; no-op without NFL lines
 ]
 
 

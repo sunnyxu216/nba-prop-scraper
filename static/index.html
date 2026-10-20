@@ -10,7 +10,11 @@
 <body>
   <header class="topbar">
     <div class="wrap topbar-inner">
-      <div class="brand"><span class="dot"></span>NBA Prop Model <span class="season" id="season-tag"></span></div>
+      <div class="brand"><span class="dot"></span><span id="brand-name">NBA Prop Model</span> <span class="season" id="season-tag"></span></div>
+      <div class="sport-switch" id="sport-switch" role="tablist" aria-label="Sport">
+        <button data-sport="nba" class="active">NBA</button>
+        <button data-sport="nfl">NFL</button>
+      </div>
       <nav class="tabs" id="tabs">
         <button data-view="props" class="active">Props</button>
         <button data-view="projections">Projections</button>
@@ -183,6 +187,110 @@
 
       <p class="disclaimer">For research and entertainment. Projections are estimates from public box-score data and do not know about
         injuries, lineup news or minutes restrictions. Check news before betting, never bet more than you can afford to lose,
+        and if gambling stops being fun call 1-800-GAMBLER.</p>
+    </section>
+    <!-- NFL: Props -->
+    <section id="view-nfl-props" class="view" hidden>
+      <div class="tiles" id="nfl-tiles"></div>
+
+      <div class="notice caution">
+        <span><b>Unproven against real lines.</b> The NFL model leans under on receptions and rushing attempts
+          compared with the books, so decisions lean heavily on the market (60% weight, 5% minimum EV) until graded
+          paper trades show real edge. Anytime TD and players outside a market's training population are scored
+          but never recommended.</span>
+      </div>
+      <div class="notice" id="nfl-source-note" hidden></div>
+
+      <div class="toolbar">
+        <input type="search" id="nfl-search" placeholder="Search player">
+        <select id="nfl-market"><option value="">All markets</option></select>
+        <select id="nfl-decision">
+          <option value="">All decisions</option>
+          <option value="bets">Bets only</option>
+          <option value="OVER">Overs</option>
+          <option value="UNDER">Unders</option>
+          <option value="PASS">Passes</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn ghost" id="nfl-toggle-settings">Settings</button>
+        <button class="btn ghost" id="nfl-score" title="Score the open lines on this PC now (the cloud does it hourly)">Score now</button>
+      </div>
+
+      <div class="card settings" id="nfl-settings" hidden>
+        <label>Min EV to bet <span><input type="number" id="nfl-set-ev" step="0.5" min="0"> %</span></label>
+        <label>Market blend <span><input type="number" id="nfl-set-blend" step="5" min="0" max="100"> %</span></label>
+        <label>Bankroll <span>$ <input type="number" id="nfl-set-bankroll" step="100" min="0"></span></label>
+        <label>Kelly fraction <span><input type="number" id="nfl-set-kelly" step="0.05" min="0" max="1"></span></label>
+        <div class="books-setting"><span>My books</span><div id="nfl-book-filter" class="book-filter"></div></div>
+        <p class="muted small">NFL defaults: 5% minimum EV, 60% market blend. These settings are separate from NBA's.</p>
+      </div>
+
+      <div class="card table-card">
+        <table class="table" id="nfl-table">
+          <thead>
+            <tr>
+              <th>Player</th><th>Prop</th><th class="num">Best price</th><th class="num">Proj</th>
+              <th class="num">Over %</th><th class="num">Best EV</th><th>Decision</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty" id="nfl-empty" hidden></div>
+      </div>
+    </section>
+
+    <!-- NFL: Projections -->
+    <section id="view-nfl-projections" class="view" hidden>
+      <div class="section-head">
+        <div>
+          <h2>This week's NFL projections</h2>
+          <p class="muted">Model projections for every player with a posted line in the upcoming games. TD column: chance to score.</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="nfl-proj-search" placeholder="Search player">
+        <select id="nfl-proj-team"><option value="">All teams</option></select>
+      </div>
+      <div class="card table-card">
+        <table class="table" id="nfl-proj-table">
+          <thead>
+            <tr>
+              <th>Player</th><th>Team</th><th>Game</th>
+              <th class="num">Pass yds</th><th class="num">Rush yds</th><th class="num">Rec</th>
+              <th class="num">Rec yds</th><th class="num">TD %</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- NFL: Model -->
+    <section id="view-nfl-model" class="view" hidden>
+      <div class="grid2">
+        <div class="card"><h3>NFL model</h3><div id="nfl-model-status"><p class="muted">Loading…</p></div></div>
+        <div class="card">
+          <h3>How it works</h3>
+          <ol class="method">
+            <li><b>Projection.</b> One gradient-boosted model per market, trained on every NFL game since 2013 (nflverse): recent form, role (target, carry, pass and snap shares), efficiency, game script (spread and implied team points), what the opponent allows to the player's position, and teammates out.</li>
+            <li><b>No peeking.</b> Every row uses only what was known before kickoff; 2025 is held out and scored once.</li>
+            <li><b>Distribution.</b> Counts: negative binomial. Yards: the out-of-sample spread of actual vs projected. Touchdowns: a calibrated probability. P(over) is recalibrated out of sample.</li>
+            <li><b>Decision.</b> Same EV maths as NBA, leaning harder on the market (60%) with a 5% minimum EV.</li>
+            <li><b>Paper trading.</b> Every hour the cloud scores every open line and logs it at four checkpoints (first seen, 24h, 2h, closing), then settles it against the box score.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Paper trading</h3>
+        <p class="muted small">Picks logged by the cloud before kickoff, settled at their own line and price. CLV: the pick's EV if the same book's closing no-vig price is the truth; positive CLV is the earliest sign of a real edge.</p>
+        <div id="nfl-paper"><p class="muted">Loading…</p></div>
+      </div>
+      <div class="card">
+        <h3>Held-out 2025 scorecard</h3>
+        <p class="muted small">Average miss on every 2025 game, model vs the player's season average (or recent form early in the season).</p>
+        <div id="nfl-scorecard"></div>
+      </div>
+      <p class="disclaimer">For research and entertainment. Check injury news before betting, never bet more than you can afford to lose,
         and if gambling stops being fun call 1-800-GAMBLER.</p>
     </section>
   </main>

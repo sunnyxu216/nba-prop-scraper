@@ -117,6 +117,8 @@ Line collection, grading and health checks run on GitHub Actions and store every
      NFL (Monday night games end by ~04:00 UTC, so every game is final by then)
    - **Health**, 15:00 daily, checked per sport: fails (emails you) if collection is stale or grading is
      behind; Mondays posts a report to the "Health report" issue
+   - **Score NFL**, hourly at :37: `scripts/score_nfl.py` scores every open NFL line with the trained
+     model and logs it for paper trading (exits in seconds when no NFL lines are open)
    - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
 
 Useful queries in Supabase's SQL editor:
@@ -138,7 +140,40 @@ follow nflverse (`spm/nfl/teams.py`).
 NFL grading uses ESPN: box-score stats, plus each team's game roster to tell who played. A player who
 played without recording a stat grades as 0 (a receiver with no targets loses an over); one who didn't
 play is void, as at the books. Anytime TD counts rushing, receiving, return and defensive TDs, not passing
-TDs. Box scores go to `results_nfl`. The model and the dashboard come next.
+TDs. Box scores go to `results_nfl`.
+
+**NFL model** (`python train_nfl.py`, ~2 minutes, on demand): one LightGBM model per market, trained on
+nflverse data since 2013 (weekly player stats, snap counts, injury reports, schedules with closing spreads
+and totals). Features are built walk-forward from what was known before kickoff: recent form, role (target,
+carry, pass and snap shares), efficiency, game script (spread, implied team points), what the opponent has
+allowed to the player's position, and teammates out. Counts use a negative binomial around the projection,
+yards the out-of-sample spread of actual/projected, and Anytime TD a calibrated probability; P(over) is
+recalibrated out of sample. Walk-forward: tune 2023, fit distributions on 2023-24, score 2025 once.
+Trained models live in `models/nfl/` (committed, so the cloud can use them).
+
+Held-out 2025 (average miss): passing yards 60.1 vs 66.4 for the season average, receiving yards 21.8 vs
+22.7, receptions 1.56 vs 1.65, rushing yards 19.7 vs 20.4.
+
+Decisions use `spm/ev.py` like NBA, but NFL leans harder on the market until graded paper trades show how
+much of the model's disagreement with the books is real (60% market weight, 5% minimum EV). Anytime TD is
+scored and tracked but never recommended (yes-only prices make the market probability a guess), and players
+outside a market's training population (backups, part-time roles) are never recommended. Against Week 7's
+real lines the model leans under on receptions and rushing attempts: treat it as unproven.
+
+Data licensing: nflverse is CC-BY-4.0 (attribution); snap counts come from Pro Football Reference, whose
+terms are stricter. `models/nfl/meta.json` records the provenance of every dataset.
+
+**NFL paper trading**: every hour the cloud scores every open NFL line and logs it to `predictions` at four
+checkpoints: first seen, 24h before kickoff, 2h before, and the last run before kickoff (closing). Each pick
+is settled at its own line and price against the box score; closing-line value (CLV) is the pick's EV if
+the same book's closing no-vig price is the truth. `predictions_latest` holds the latest scoring of every
+open line, with reasoning, for the dashboard; `predictions_licensed` excludes scraped lines. Results show in
+the NFL Model tab and the weekly health report.
+
+**NFL dashboard**: the NBA/NFL switch in the top bar. Props: the cloud's latest scoring (or **Score now**
+to score on this PC), grouped by player and market, best price among your books, decision, EV and reasoning.
+Projections: this week's projections for every player with a line. Model: the 2025 scorecard and the
+paper-trading record. NFL settings are separate from NBA's.
 
 ## How the model works
 
@@ -220,7 +255,8 @@ spm/reasoning.py    plain-English explanations
 spm/backtest.py     walk-forward backtest + calibration fit
 spm/props.py        props.csv storage
 spm/lineups.py      who's playing: rotations, absences, injury report
-spm/nfl/            NFL: team codes, ESPN box scores for grading (data and model to follow)
+spm/nfl/            NFL: team codes, ESPN box scores (grading), nflverse data, features, model, live scoring
+train_nfl.py        download NFL history + train the NFL models (models/nfl/)
 spm/odds/           odds sources behind one interface (Offer + OddsSource + registry)
   base.py           the interface; `source` and `licensed` decide what's usable commercially
   action_network.py dev-only scraped feed (licensed = False)
@@ -238,10 +274,12 @@ spm/store/health.py pipeline health: stale collection / grading backlog checks, 
 scripts/health.py   daily "Health" workflow: fails (emails you) on missing success; Mondays posts a report
                     to the "Health report" issue and re-enables scheduled workflows (60-day keepalive)
 scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
+scripts/score_nfl.py  score open NFL lines + log paper trades (hourly "Score NFL" workflow)
+spm/store/paper.py  paper trading: checkpoints, predictions log, ROI / CLV / calibration
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
                     offers_licensed view; 002_grading.sql: results, grades, grades_licensed view;
                     003_nfl.sql: NFL sport, nullable under_odds for one-sided markets;
-                    004_nfl_results.sql: NFL box scores)
+                    004_nfl_results.sql: NFL box scores; 005_predictions.sql: paper trading)
 .env.example        template for .env (DATABASE_URL, ODDS_API_KEY); .env is gitignored
 spm/service.py      glue used by the API
 tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`
