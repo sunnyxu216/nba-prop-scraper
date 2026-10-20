@@ -29,7 +29,7 @@ jobs:
       # so the cache is saved once per 6-hour block (old entries age out) and restored from the newest.
       - name: Cache key (6-hour block)
         id: block
-        run: echo "key=nflverse-$(date -u +%Y%m%d)-$(( $(date -u +%H) / 6 ))" >> "$GITHUB_OUTPUT"
+        run: echo "key=nflverse-$(date -u +%Y%m%d)-$(( 10#$(date -u +%H) / 6 ))" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
           path: data/cache/nfl
