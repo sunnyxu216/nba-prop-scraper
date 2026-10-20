@@ -50,7 +50,8 @@ def _qb(f):
 
 
 def _rusher(f):
-    return _f(f, "rush_att_s") >= 4
+    """Regular ball carriers, and starting QBs (books post QB rushing lines every week)."""
+    return _f(f, "rush_att_s") >= 4 or _qb(f)
 
 
 def _receiver(f):

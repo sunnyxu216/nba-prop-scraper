@@ -130,3 +130,23 @@ def test_markets_match_odds_and_grading():
     from spm.odds import NFL_MARKETS
     from spm.store.grading import NFL_MARKETS as GRADED
     assert set(M.MARKETS) == set(NFL_MARKETS) == set(GRADED)
+
+
+# --------------------------------------------------------------------------- live
+
+def test_one_sided_price_implies_assumed_margin():
+    from spm import ev
+    from spm.nfl import live
+    for yes in (-150, 120, 450):
+        under = live.one_sided_prices(yes)
+        p_over, _, vig = ev.no_vig(yes, under)
+        assert math.isclose(p_over, ev.implied_prob(yes) / (1 + live.ONE_SIDED_HOLD), abs_tol=0.01)
+        assert math.isclose(vig, live.ONE_SIDED_HOLD, abs_tol=0.01)
+
+
+def test_nfl_defaults_are_more_conservative_than_nba():
+    from spm import ev
+    from spm.nfl import live
+    assert live.NFL_DEFAULTS["market_blend"] > ev.DEFAULTS["market_blend"]
+    assert live.NFL_DEFAULTS["ev_threshold"] > ev.DEFAULTS["ev_threshold"]
+    assert live.TRACK_ONLY == {"ANYTIME_TD"}

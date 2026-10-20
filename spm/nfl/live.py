@@ -6,7 +6,8 @@
 
 EV and the decision come from spm/ev.py, the same code as the NBA board: model and no-vig
 market probabilities are blended, and a bet needs EV above the threshold (higher for
-low-confidence spots).
+low-confidence spots). NFL defaults lean harder on the market than NBA's until graded paper
+trades show how much of the model's disagreement with the books is real edge.
 """
 
 import datetime as dt
@@ -18,6 +19,10 @@ from . import data, features
 from .model import LABELS, MARKETS, Predictor
 
 ONE_SIDED_HOLD = 0.10      # assumed bookmaker margin when only a "yes" price is posted (Anytime TD)
+NFL_DEFAULTS = {"market_blend": 0.60, "ev_threshold": 0.05}
+# Markets scored and logged for paper trading but never recommended as bets (yes-only pricing makes
+# the market probability a guess, and the model's TD probabilities were overconfident in 2025).
+TRACK_ONLY = {"ANYTIME_TD"}
 
 
 def _fmt(x, d=1):
@@ -103,8 +108,14 @@ class Scorer:
         one_sided = r.get("under_odds") is None
         under_odds = one_sided_prices(r["over_odds"]) if one_sided else r["under_odds"]
         low_conf = (not proj["eligible"]) or feats["season_games"] < 3 or feats["games_missed"] > 0
-        result = ev.evaluate(proj, r["over_odds"], under_odds, settings, low_confidence=low_conf)
+        result = ev.evaluate(proj, r["over_odds"], under_odds, {**NFL_DEFAULTS, **(settings or {})},
+                             low_confidence=low_conf)
+        model_call = result["decision"]
         if one_sided and result["decision"] == "UNDER":     # there is no "no" bet to place
+            result["decision"], result["tier"] = "PASS", None
+        outside = not proj["eligible"]       # not in this market's training population (e.g. a backup)
+        track_only = market in TRACK_ONLY or outside
+        if track_only:
             result["decision"], result["tier"] = "PASS", None
         injury = self._injuries(g["season"], g["week"]).get((team, key))
         return {"projection": proj["mu"], "kind": proj["kind"], "p_over": proj["p_over"], "p_under": proj["p_under"],
@@ -113,12 +124,15 @@ class Scorer:
                 "ev_under": None if one_sided else result["sides"]["UNDER"]["ev"],
                 "stake_pct": result["sides"][result["best_side"]]["kelly_pct"] if result["decision"] != "PASS" else 0.0,
                 "market_prob_over": result["sides"]["OVER"]["market_prob"], "low_confidence": low_conf,
-                "one_sided": one_sided, "injury_status": injury, "model_version": self.predictor.version,
+                "one_sided": one_sided, "track_only": track_only, "outside_training": outside,
+                "model_call": model_call,
+                "injury_status": injury, "model_version": self.predictor.version,
                 "game_id": g["game_id"], "position": p.position, "opp": opp,
-                "reasoning": reasoning(market, proj, feats, result, r, opp, one_sided, injury)}
+                "reasoning": reasoning(market, proj, feats, result, r, opp, one_sided, injury, track_only,
+                                       outside)}
 
 
-def reasoning(market, proj, f, result, offer, opp, one_sided, injury):
+def reasoning(market, proj, f, result, offer, opp, one_sided, injury, track_only=False, outside=False):
     """Plain-English explanation: the projection, what drives it, and the bet math."""
     label, kind = LABELS[market], MARKETS[market][1]
     cols = MARKETS[market][0]
@@ -137,7 +151,7 @@ def reasoning(market, proj, f, result, offer, opp, one_sided, injury):
     role = []
     if f["pos_QB"]:
         role.append(f"{_fmt(f['pass_share_s'] * 100, 0)}% of team pass attempts")
-    if not math.isnan(f["tgt_share_s"]):
+    if not f["pos_QB"] and not math.isnan(f["tgt_share_s"]):
         role.append(f"{_fmt(f['tgt_share_s'] * 100, 0)}% target share")
     if not math.isnan(f["carry_share_s"]) and f["carry_share_s"] > 0.05:
         role.append(f"{_fmt(f['carry_share_s'] * 100, 0)}% of carries")
@@ -150,7 +164,9 @@ def reasoning(market, proj, f, result, offer, opp, one_sided, injury):
         if f["spread"] < 0 else "a pick'em"
     lines.append(f"Game: vs {opp} {side}, {fav}; team expected to score {_fmt(f['implied_pts'])} "
                  f"(total {_fmt(f['game_total'])}).")
-    effects = sorted(((g, v) for g, v in proj["groups"].items() if g != "Recent form" and abs(v) > 1e-6),
+    # situations that don't apply this week (no missed games, nobody out) aren't reported as adjustments
+    hidden = {"Recent form"} | ({"Injury return"} if f["games_missed"] == 0 else set()) |         ({"Teammates out"} if f["vac_tgt"] + f["vac_carry"] + f["vac_pass"] < 0.05 else set())
+    effects = sorted(((g, v) for g, v in proj["groups"].items() if g not in hidden and abs(v) > 1e-6),
                      key=lambda t: -abs(t[1]))[:3]
     if effects:
         unit = {"count": "%", "yards": " yds", "binary": " (log-odds)"}[kind]
@@ -167,7 +183,13 @@ def reasoning(market, proj, f, result, offer, opp, one_sided, injury):
     if one_sided:
         lines.append(f"Only a 'yes' price is posted ({offer['over_odds']:+d}); the market's probability "
                      f"({s['OVER']['market_prob']:.0%}) assumes a {ONE_SIDED_HOLD:.0%} bookmaker margin.")
-    if result["decision"] == "PASS":
+    if outside:
+        lines.append(f"Not recommended: this player's recent role is outside what the {LABELS[market]} model "
+                     f"was trained on (e.g. a backup or a part-time role), so its projection isn't reliable here.")
+    elif track_only:
+        lines.append(f"Tracked only, never recommended: best EV {result['best_ev'] * 100:+.1f}% is logged for "
+                     f"paper trading until graded results validate this market.")
+    elif result["decision"] == "PASS":
         lines.append(f"No bet: best EV {result['best_ev'] * 100:+.1f}% is below the "
                      f"{result['threshold'] * 100:.1f}% threshold.")
     else:

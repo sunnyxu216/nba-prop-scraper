@@ -138,7 +138,28 @@ follow nflverse (`spm/nfl/teams.py`).
 NFL grading uses ESPN: box-score stats, plus each team's game roster to tell who played. A player who
 played without recording a stat grades as 0 (a receiver with no targets loses an over); one who didn't
 play is void, as at the books. Anytime TD counts rushing, receiving, return and defensive TDs, not passing
-TDs. Box scores go to `results_nfl`. The model and the dashboard come next.
+TDs. Box scores go to `results_nfl`.
+
+**NFL model** (`python train_nfl.py`, ~2 minutes, on demand): one LightGBM model per market, trained on
+nflverse data since 2013 (weekly player stats, snap counts, injury reports, schedules with closing spreads
+and totals). Features are built walk-forward from what was known before kickoff: recent form, role (target,
+carry, pass and snap shares), efficiency, game script (spread, implied team points), what the opponent has
+allowed to the player's position, and teammates out. Counts use a negative binomial around the projection,
+yards the out-of-sample spread of actual/projected, and Anytime TD a calibrated probability; P(over) is
+recalibrated out of sample. Walk-forward: tune 2023, fit distributions on 2023-24, score 2025 once.
+Trained models live in `models/nfl/` (committed, so the cloud can use them).
+
+Held-out 2025 (average miss): passing yards 60.1 vs 66.4 for the season average, receiving yards 21.8 vs
+22.7, receptions 1.56 vs 1.65, rushing yards 19.7 vs 20.4.
+
+Decisions use `spm/ev.py` like NBA, but NFL leans harder on the market until graded paper trades show how
+much of the model's disagreement with the books is real (60% market weight, 5% minimum EV). Anytime TD is
+scored and tracked but never recommended (yes-only prices make the market probability a guess), and players
+outside a market's training population (backups, part-time roles) are never recommended. Against Week 7's
+real lines the model leans under on receptions and rushing attempts: treat it as unproven.
+
+Data licensing: nflverse is CC-BY-4.0 (attribution); snap counts come from Pro Football Reference, whose
+terms are stricter. `models/nfl/meta.json` records the provenance of every dataset.
 
 ## How the model works
 
@@ -220,7 +241,8 @@ spm/reasoning.py    plain-English explanations
 spm/backtest.py     walk-forward backtest + calibration fit
 spm/props.py        props.csv storage
 spm/lineups.py      who's playing: rotations, absences, injury report
-spm/nfl/            NFL: team codes, ESPN box scores for grading (data and model to follow)
+spm/nfl/            NFL: team codes, ESPN box scores (grading), nflverse data, features, model, live scoring
+train_nfl.py        download NFL history + train the NFL models (models/nfl/)
 spm/odds/           odds sources behind one interface (Offer + OddsSource + registry)
   base.py           the interface; `source` and `licensed` decide what's usable commercially
   action_network.py dev-only scraped feed (licensed = False)
