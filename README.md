@@ -117,6 +117,8 @@ Line collection, grading and health checks run on GitHub Actions and store every
      NFL (Monday night games end by ~04:00 UTC, so every game is final by then)
    - **Health**, 15:00 daily, checked per sport: fails (emails you) if collection is stale or grading is
      behind; Mondays posts a report to the "Health report" issue
+   - **Score NFL**, hourly at :37: `scripts/score_nfl.py` scores every open NFL line with the trained
+     model and logs it for paper trading (exits in seconds when no NFL lines are open)
    - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
 
 Useful queries in Supabase's SQL editor:
@@ -160,6 +162,18 @@ real lines the model leans under on receptions and rushing attempts: treat it as
 
 Data licensing: nflverse is CC-BY-4.0 (attribution); snap counts come from Pro Football Reference, whose
 terms are stricter. `models/nfl/meta.json` records the provenance of every dataset.
+
+**NFL paper trading**: every hour the cloud scores every open NFL line and logs it to `predictions` at four
+checkpoints: first seen, 24h before kickoff, 2h before, and the last run before kickoff (closing). Each pick
+is settled at its own line and price against the box score; closing-line value (CLV) is the pick's EV if
+the same book's closing no-vig price is the truth. `predictions_latest` holds the latest scoring of every
+open line, with reasoning, for the dashboard; `predictions_licensed` excludes scraped lines. Results show in
+the NFL Model tab and the weekly health report.
+
+**NFL dashboard**: the NBA/NFL switch in the top bar. Props: the cloud's latest scoring (or **Score now**
+to score on this PC), grouped by player and market, best price among your books, decision, EV and reasoning.
+Projections: this week's projections for every player with a line. Model: the 2025 scorecard and the
+paper-trading record. NFL settings are separate from NBA's.
 
 ## How the model works
 
@@ -260,10 +274,12 @@ spm/store/health.py pipeline health: stale collection / grading backlog checks, 
 scripts/health.py   daily "Health" workflow: fails (emails you) on missing success; Mondays posts a report
                     to the "Health report" issue and re-enables scheduled workflows (60-day keepalive)
 scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
+scripts/score_nfl.py  score open NFL lines + log paper trades (hourly "Score NFL" workflow)
+spm/store/paper.py  paper trading: checkpoints, predictions log, ROI / CLV / calibration
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
                     offers_licensed view; 002_grading.sql: results, grades, grades_licensed view;
                     003_nfl.sql: NFL sport, nullable under_odds for one-sided markets;
-                    004_nfl_results.sql: NFL box scores)
+                    004_nfl_results.sql: NFL box scores; 005_predictions.sql: paper trading)
 .env.example        template for .env (DATABASE_URL, ODDS_API_KEY); .env is gitignored
 spm/service.py      glue used by the API
 tests/              pytest suite (EV math, parsing, grading, odds-source contract); run `pytest`

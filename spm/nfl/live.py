@@ -127,7 +127,7 @@ class Scorer:
                 "one_sided": one_sided, "track_only": track_only, "outside_training": outside,
                 "model_call": model_call,
                 "injury_status": injury, "model_version": self.predictor.version,
-                "game_id": g["game_id"], "position": p.position, "opp": opp,
+                "game_id": g["game_id"], "position": p.position, "team": team, "opp": opp,
                 "reasoning": reasoning(market, proj, feats, result, r, opp, one_sided, injury, track_only,
                                        outside)}
 

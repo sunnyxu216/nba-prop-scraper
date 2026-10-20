@@ -92,4 +92,23 @@ def weekly_report(conn, now=None):
         f"| From licensed sources | {licensed:,} of {offers:,} |",
         f"| Database size | {size_mb:.0f} MB of 500 MB free tier |",
     ]
+    lines += _paper_section(conn)
     return "\n".join(lines)
+
+
+def _paper_section(conn):
+    """NFL paper-trading record (closing checkpoint), or nothing before migration 005 exists."""
+    from . import paper
+    try:
+        with conn.transaction():
+            s = paper.summary(conn, "nfl")
+    except Exception:          # predictions table not created yet
+        return []
+
+    def fmt(r):
+        return (f"{r['picks']} picks, {r['wins']}-{r['losses']}-{r['pushes']}, {r['units']:+.2f}u"
+                + (f", ROI {r['roi']:+.1%}" if r["roi"] is not None else "")
+                + (f", avg CLV {r['avg_clv']:+.1%}" if r["avg_clv"] is not None else ""))
+    return ["", "### NFL paper trading (all time, closing checkpoint)", "",
+            f"- Recommended bets: {fmt(s['checkpoints']['close'])}",
+            f"- Tracked only (Anytime TD, outside model): {fmt(s['track_only'])}"]

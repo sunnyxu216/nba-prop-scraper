@@ -14,6 +14,9 @@ const state = {
   books: [],
   projSort: { k: "PTS", asc: false },
   settings: loadSettings(),
+  sport: (() => { try { return localStorage.getItem("sport") === "nfl" ? "nfl" : "nba"; } catch { return "nba"; } })(),
+  view: "props",
+  nfl: { props: [], books: [], open: new Set(), settings: loadNflSettings(), loaded: false },
 };
 
 function loadSettings() {
@@ -22,6 +25,13 @@ function loadSettings() {
 }
 function saveSettings() {
   try { localStorage.setItem("settings", JSON.stringify(state.settings)); } catch {}
+}
+function loadNflSettings() {
+  const d = { ev_threshold: 0.05, market_blend: 0.6, bankroll: 1000, kelly_mult: 0.25, books: [] };
+  try { return { ...d, ...JSON.parse(localStorage.getItem("nfl_settings") || "{}") }; } catch { return d; }
+}
+function saveNflSettings() {
+  try { localStorage.setItem("nfl_settings", JSON.stringify(state.nfl.settings)); } catch {}
 }
 
 async function api(path, opts = {}) {
@@ -49,7 +59,8 @@ async function boot() {
   state.meta = await api("meta");
   fillSelects();
   bindUI();
-  showView(location.hash.slice(1) || "props");
+  nflBindUI();
+  setSport(state.sport, location.hash.slice(1) || "props");
   await loadProps();
   refreshStatus();
 }
@@ -71,11 +82,30 @@ function fillSelects() {
 
 function showView(v) {
   if (!["props", "projections", "model"].includes(v)) v = "props";
-  $$(".view").forEach((el) => (el.hidden = el.id !== `view-${v}`));
+  state.view = v;
+  const id = state.sport === "nfl" ? `view-nfl-${v}` : `view-${v}`;
+  $$(".view").forEach((el) => (el.hidden = el.id !== id));
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
   history.replaceState(null, "", `#${v}`);
+  if (state.sport === "nfl") {
+    if (v === "props" || (v === "projections" && !state.nfl.loaded)) loadNfl();
+    if (v === "projections") renderNflProjections();
+    if (v === "model") loadNflModel();
+    return;
+  }
   if (v === "projections" && !state.projections.length) loadProjections();
   if (v === "model") { refreshStatus(); loadModelReport(); loadYearly(); loadLines(); loadBacktest(); }
+}
+
+function setSport(sport, view) {
+  state.sport = sport === "nfl" ? "nfl" : "nba";
+  try { localStorage.setItem("sport", state.sport); } catch {}
+  $$("#sport-switch button").forEach((b) => b.classList.toggle("active", b.dataset.sport === state.sport));
+  const name = state.sport === "nfl" ? "NFL Prop Model" : "NBA Prop Model";
+  $("#brand-name").textContent = name;
+  document.title = name;
+  $("#season-tag").hidden = state.sport === "nfl";
+  showView(view || state.view);
 }
 
 /* ------------------------------------------------------------------ props */
@@ -621,6 +651,262 @@ function bindUI() {
   });
   $("#train-model").addEventListener("click", async () => { await api("train", { method: "POST" }); loadModelReport(); });
   $("#run-backtest").addEventListener("click", async () => { await api("backtest", { method: "POST" }); loadBacktest(); });
+}
+
+/* ------------------------------------------------------------------ NFL */
+
+const NFL_MARKETS = {
+  PASS_YDS: "Pass yds", PASS_CMP: "Completions", PASS_ATT: "Pass att", PASS_TD: "Pass TD", INT: "Interceptions",
+  RUSH_YDS: "Rush yds", RUSH_ATT: "Rush att", REC: "Receptions", REC_YDS: "Rec yds", RUSH_REC_YDS: "Rush + rec yds",
+  ANYTIME_TD: "Anytime TD",
+};
+const kickoff = (s) => {
+  const d = new Date(s);
+  return isNaN(d) ? "" : d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+};
+
+function nflQuery() {
+  const s = state.nfl.settings;
+  return new URLSearchParams(Object.entries(s).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : String(v)])).toString();
+}
+
+async function loadNfl() {
+  try {
+    const r = await api(`nfl-board?${nflQuery()}`);
+    Object.assign(state.nfl, { props: r.props, books: r.books, origin: r.origin, scored_at: r.scored_at,
+                               status: r.status, error: r.error, database: r.database, loaded: true });
+  } catch (err) {
+    Object.assign(state.nfl, { props: [], error: err.message, loaded: true });
+  }
+  renderNflBookFilter();
+  renderNfl();
+  if (state.view === "projections") renderNflProjections();
+  if (state.nfl.status === "running") setTimeout(loadNfl, 4000);
+}
+
+function renderNflBookFilter() {
+  const box = $("#nfl-book-filter");
+  if (!state.nfl.books.length) { box.innerHTML = `<span class="muted small">Books appear once NFL lines are scored.</span>`; return; }
+  const mine = new Set(state.nfl.settings.books.map((b) => b.toLowerCase()));
+  box.innerHTML = state.nfl.books.map((b) => `<label class="check"><input type="checkbox" value="${esc(b)}" ${!mine.size || mine.has(b.toLowerCase()) ? "checked" : ""}> ${esc(b)}</label>`).join("");
+}
+
+function nflFiltered() {
+  const q = $("#nfl-search").value.trim().toLowerCase();
+  const m = $("#nfl-market").value, dec = $("#nfl-decision").value;
+  return state.nfl.props.filter((g) => {
+    const d = g.best.decision;
+    if (q && !g.player.toLowerCase().includes(q)) return false;
+    if (m && g.market !== m) return false;
+    if (dec === "bets" && d === "PASS") return false;
+    if (dec && dec !== "bets" && d !== dec) return false;
+    return true;
+  });
+}
+
+function renderNfl() {
+  const n = state.nfl, props = n.props;
+  const bets = props.filter((g) => g.best.decision !== "PASS");
+  const avg = bets.length ? bets.reduce((s, g) => s + g.best.best_ev, 0) / bets.length : null;
+  const when = n.scored_at ? kickoff(n.scored_at) : "–";
+  $("#nfl-tiles").innerHTML = [
+    ["Props analyzed", props.length], ["Model picks (paper)", bets.length],
+    ["Avg model EV of picks", avg == null ? "–" : signedPct(avg)],
+    [n.origin === "local" ? "Scored on this PC" : "Scored in the cloud", when],
+  ].map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  const msgs = [];
+  if (n.status === "running") msgs.push("Scoring the open NFL lines on this PC… (the first run downloads NFL history, about a minute)");
+  if (n.error) msgs.push(`NFL scoring failed: ${esc(n.error)}`);
+  if (n.database === false) msgs.push("No database configured: NFL lines are collected in Supabase, so set DATABASE_URL in .env.");
+  const note = $("#nfl-source-note");
+  note.innerHTML = `<span>${msgs.join("<br>")}</span>`;
+  note.hidden = !msgs.length;
+
+  const empty = $("#nfl-empty");
+  empty.hidden = props.length > 0;
+  empty.textContent = n.origin ? "No open NFL lines right now. Books post most props 1–5 days before kickoff."
+    : "No NFL scores yet. Click Score now to score the open lines on this PC.";
+  $("#nfl-table tbody").innerHTML = nflFiltered().map((g) => {
+    const b = g.best, open = n.open.has(g.id);
+    const flags = [g.track_only && !g.outside_training ? `<span class="flag">tracked only</span>` : "",
+      g.outside_training ? `<span class="flag">outside model</span>` : "",
+      g.injury_status ? `<span class="flag warn">${esc(g.injury_status)}</span>` : "",
+      g.at_my_books === false ? `<span class="flag">not at your books</span>` : "",
+      g.books.length > 1 ? `<span class="tag">${g.books.length} books</span>` : ""].join("");
+    const price = `${odds(b.over_odds)} / ${b.under_odds == null ? "–" : odds(b.under_odds)}`;
+    const proj = g.kind === "binary" ? pct(b.p_over, 0) : g.projection.toFixed(1);
+    let diff = "";
+    if (g.kind !== "binary") {
+      const d = g.projection - b.line;
+      diff = ` <span class="${d >= 0 ? "pos" : "neg"} small">${d >= 0 ? "+" : ""}${d.toFixed(1)}</span>`;
+    }
+    const decision = b.decision === "PASS" ? `<span class="badge PASS">PASS</span>`
+      : `<span class="badge ${b.decision}">${b.decision} <span class="tier">· ${b.tier}</span></span>`;
+    let html = `<tr class="row${open ? " open" : ""}" data-id="${esc(g.id)}">
+      <td class="player-cell"><b>${esc(g.player)}</b>${flags}<div class="sub">${esc(g.team)} · ${g.home ? "vs" : "@"} ${esc(g.opp)} · ${kickoff(g.start_time)}</div></td>
+      <td>${esc(NFL_MARKETS[g.market] || g.market)} <span class="muted">${b.line}</span><div class="sub muted small">${esc(g.position)}</div></td>
+      <td class="num">${price}<div class="sub muted small">${esc(b.book)}</div></td>
+      <td class="num"><b>${proj}</b>${diff}</td>
+      <td class="num">${pct(b.p_over)}</td>
+      <td class="num ${b.best_ev >= 0 ? "pos" : "neg"}">${signedPct(b.best_ev)} <span class="muted small">${b.best_side[0]}</span></td>
+      <td>${decision}</td><td class="num"><span class="chev">›</span></td></tr>`;
+    if (open) html += `<tr class="detail"><td colspan="8">${nflDetail(g)}</td></tr>`;
+    return html;
+  }).join("");
+}
+
+function nflDetail(g) {
+  const b = g.best, s = state.nfl.settings;
+  const td = g.market === "ANYTIME_TD";
+  const reasons = g.reasoning.map((t) => `<li><span class="lean neutral">•</span><span>${esc(t)}</span></li>`).join("");
+  const evRows = ["OVER", "UNDER"].map((side) => {
+    const x = b.sides[side];
+    if (!x) return `<tr class="dim"><td>${td ? "No" : "Under"}</td><td colspan="5" class="muted">No price posted</td></tr>`;
+    const label = td ? (side === "OVER" ? "Yes" : "No") : `${side === "OVER" ? "Over" : "Under"} ${b.line}`;
+    return `<tr class="${side === b.decision ? "best" : ""}"><td>${label} (${odds(x.odds)})</td>
+      <td>${pct(x.model_prob)}</td><td>${pct(x.market_prob)}</td><td>${pct(x.breakeven)}</td>
+      <td class="${x.ev >= 0 ? "pos" : "neg"}">${signedPct(x.ev)}</td><td>${x.stake ? money(x.stake) : "–"}</td></tr>`;
+  }).join("");
+  let decisionLine;
+  if (b.decision !== "PASS") decisionLine = `${b.tier} ${b.decision}: EV ${signedPct(b.best_ev)} per $1 at ${b.book}.`;
+  else if (g.at_my_books === false) decisionLine = `Not offered at your books (best elsewhere: ${b.book}). Tick more books in Settings to consider it.`;
+  else if (g.outside_training) decisionLine = "Not recommended: this player's role is outside what the model was trained on.";
+  else if (g.track_only) decisionLine = "Not a recommended bet: tracked for paper trading only.";
+  else decisionLine = `No bet: best EV ${signedPct(b.best_ev)} is below the ${pct(b.threshold)} bar.`;
+  const shop = g.books.length < 2 ? "" : `<div class="panel"><h4>Line shopping</h4>
+    <table class="ev-table"><thead><tr><th>Book</th><th>Line</th><th>Over</th><th>Under</th><th>Over EV</th><th>Under EV</th></tr></thead><tbody>
+    ${g.books.map((x) => `<tr class="${x.best ? "best" : ""}${x.mine ? "" : " dim"}"><td>${esc(x.book)}${x.best ? " ★" : ""}</td><td>${x.line}</td>
+      <td>${odds(x.over_odds)}</td><td>${x.under_odds == null ? "–" : odds(x.under_odds)}</td>
+      <td class="${x.ev_over >= 0 ? "pos" : "neg"}">${signedPct(x.ev_over)}</td>
+      <td>${x.ev_under == null ? "–" : `<span class="${x.ev_under >= 0 ? "pos" : "neg"}">${signedPct(x.ev_under)}</span>`}</td></tr>`).join("")}
+    </tbody></table><p class="legend-note">★ best price among your books. Greyed books are excluded in Settings.</p></div>`;
+  return `<div class="detail-grid">
+    <div><p class="summary">${esc(decisionLine)}</p><ul class="reasons">${reasons}</ul></div>
+    <div>
+      <div class="panel"><h4>Expected value</h4>
+        <table class="ev-table"><thead><tr><th>Side</th><th>Model</th><th>Market</th><th>Break-even</th><th>EV</th><th>Stake</th></tr></thead>
+        <tbody>${evRows}</tbody></table>
+        ${g.low_confidence ? `<p class="legend-note">Low-confidence spot: EV bar raised to ${pct(b.threshold)}.</p>` : ""}
+        ${b.p_push > 0.001 ? `<p class="legend-note">Push probability ${pct(b.p_push)} (whole-number line).</p>` : ""}
+        <p class="legend-note">EV uses ${Math.round((1 - s.market_blend) * 100)}% model and ${Math.round(s.market_blend * 100)}% market probability. Stake is ${s.kelly_mult}× Kelly on a ${money(s.bankroll)} bankroll.</p>
+      </div>
+      ${shop}
+    </div></div>`;
+}
+
+function renderNflProjections() {
+  const by = {};
+  for (const g of state.nfl.props) {
+    const k = `${g.player}|${g.team}`;
+    const p = (by[k] ||= { player: g.player, team: g.team, opp: g.opp, home: g.home, start: g.start_time, m: {} });
+    p.m[g.market] = g.kind === "binary" ? g.best.p_over : g.projection;
+  }
+  const teams = [...new Set(Object.values(by).map((p) => p.team))].sort();
+  const sel = $("#nfl-proj-team"), cur = sel.value;
+  sel.innerHTML = `<option value="">All teams</option>` + teams.map((t) => `<option ${t === cur ? "selected" : ""}>${esc(t)}</option>`).join("");
+  const q = $("#nfl-proj-search").value.trim().toLowerCase();
+  const rows = Object.values(by).filter((p) => (!q || p.player.toLowerCase().includes(q)) && (!sel.value || p.team === sel.value))
+    .sort((a, b) => a.start.localeCompare(b.start) || a.team.localeCompare(b.team) || a.player.localeCompare(b.player));
+  const dash = `<span class="muted">–</span>`;
+  const num = (v) => (v == null ? dash : v.toFixed(1));
+  $("#nfl-proj-table tbody").innerHTML = rows.length ? rows.map((p) => `<tr>
+    <td><b>${esc(p.player)}</b></td><td>${esc(p.team)}</td><td>${p.home ? "vs" : "@"} ${esc(p.opp)} · ${kickoff(p.start)}</td>
+    <td class="num">${num(p.m.PASS_YDS)}</td><td class="num">${num(p.m.RUSH_YDS)}</td><td class="num">${num(p.m.REC)}</td>
+    <td class="num">${num(p.m.REC_YDS)}</td><td class="num">${p.m.ANYTIME_TD == null ? dash : pct(p.m.ANYTIME_TD, 0)}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="muted">No projections yet: they appear once open NFL lines are scored.</td></tr>`;
+}
+
+async function loadNflModel() {
+  let m;
+  try { m = await api("nfl-model"); } catch (err) { $("#nfl-model-status").innerHTML = `<p class="error">${esc(err.message)}</p>`; return; }
+  if (!m.trained) {
+    $("#nfl-model-status").innerHTML = `<p class="muted">Not trained yet. Run <code>python train_nfl.py</code> (about 2 minutes).</p>`;
+    $("#nfl-scorecard").innerHTML = "";
+  } else {
+    $("#nfl-model-status").innerHTML = `<dl class="kv">
+      <dt>Trained</dt><dd>${esc(new Date(m.trained_at).toLocaleString())}</dd>
+      <dt>Data through</dt><dd>${esc(m.data_through)}</dd>
+      <dt>Protocol</dt><dd>${esc(m.protocol)}</dd>
+      <dt>Data sources</dt><dd>${Object.entries(m.provenance).map(([k, v]) => `<b>${esc(k)}</b>: ${esc(v)}`).join("<br>")}</dd></dl>
+      <p class="muted small">Retrain with <code>python train_nfl.py</code> (about 2 minutes), then commit models/nfl/ so the cloud uses it.</p>`;
+    const rows = Object.entries(m.markets).map(([k, v]) => {
+      const h = v.holdout, bin = v.kind === "binary";
+      const [model, base] = bin ? [h.logloss, h.logloss_baseline] : [h.mae, h.mae_baseline];
+      const gain = base ? (base - model) / base : null;
+      return `<tr><td>${esc(NFL_MARKETS[k] || k)}</td><td class="num">${h.n.toLocaleString()}</td>
+        <td class="num">${model.toFixed(bin ? 3 : 2)}</td><td class="num">${base.toFixed(bin ? 3 : 2)}</td>
+        <td class="num ${gain >= 0 ? "pos" : "neg"}">${signedPct(gain, 0)}</td>
+        <td class="small muted">${v.top_features.slice(0, 4).map(([f]) => esc(f)).join(", ")}</td></tr>`;
+    }).join("");
+    $("#nfl-scorecard").innerHTML = `<table class="table"><thead><tr><th>Market</th><th class="num">2025 games</th><th class="num">Model</th>
+      <th class="num">Baseline</th><th class="num">Better by</th><th>Leans most on</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="legend-note">Yards and counts: average miss. Anytime TD: log loss (lower is better).</p>`;
+  }
+  const p = m.paper;
+  if (!p) { $("#nfl-paper").innerHTML = `<p class="muted">${esc(m.paper_error || "Needs DATABASE_URL to read the paper-trading log.")}</p>`; return; }
+  const cpName = { open: "First seen", t24: "24h before", t2: "2h before", close: "Closing (last before kickoff)" };
+  const recRow = (label, r) => `<tr><td>${label}</td><td class="num">${r.picks}</td><td class="num">${r.wins}-${r.losses}-${r.pushes}</td>
+    <td class="num ${r.units >= 0 ? "pos" : "neg"}">${r.units >= 0 ? "+" : ""}${r.units.toFixed(2)}u</td>
+    <td class="num">${r.roi == null ? "–" : signedPct(r.roi)}</td>
+    <td class="num">${r.avg_clv == null ? "–" : `${signedPct(r.avg_clv)} <span class="muted small">(${r.clv_n})</span>`}</td></tr>`;
+  const graded = Object.values(p.checkpoints).some((r) => r.settled) || (p.track_only && p.track_only.settled);
+  const cal = p.calibration.length ? `<h4>Calibration (closing checkpoint, every scored line)</h4>
+    <table class="ev-table"><thead><tr><th>Model P(over)</th><th>Actual</th><th>Market</th><th>Lines</th></tr></thead><tbody>
+    ${p.calibration.map((c) => `<tr><td>${pct(c.predicted, 0)}</td><td>${pct(c.actual, 0)}</td><td>${pct(c.market, 0)}</td><td>${c.n}</td></tr>`).join("")}
+    </tbody></table>` : "";
+  $("#nfl-paper").innerHTML = (graded ? "" : `<p class="muted">No graded picks yet: picks are settled the morning after each game.</p>`) +
+    `<table class="table"><thead><tr><th>Checkpoint</th><th class="num">Picks</th><th class="num">W-L-P</th><th class="num">Units (1u flat)</th>
+     <th class="num">ROI</th><th class="num">Avg CLV</th></tr></thead><tbody>
+     ${Object.entries(p.checkpoints).map(([k, r]) => recRow(cpName[k], r)).join("")}
+     ${p.track_only ? recRow("Tracked only (Anytime TD, outside model): would-be picks", p.track_only) : ""}
+     </tbody></table>${cal}`;
+}
+
+function nflBindUI() {
+  $("#sport-switch").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setSport(b.dataset.sport); });
+  $("#nfl-market").insertAdjacentHTML("beforeend", Object.entries(NFL_MARKETS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join(""));
+  ["#nfl-search", "#nfl-market", "#nfl-decision"].forEach((sel) => $(sel).addEventListener("input", renderNfl));
+  ["#nfl-proj-search", "#nfl-proj-team"].forEach((sel) => $(sel).addEventListener("input", renderNflProjections));
+  $("#nfl-table tbody").addEventListener("click", (e) => {
+    const row = e.target.closest("tr.row");
+    if (!row) return;
+    const id = row.dataset.id, o = state.nfl.open;
+    o.has(id) ? o.delete(id) : o.add(id);
+    renderNfl();
+  });
+  $("#nfl-toggle-settings").addEventListener("click", () => ($("#nfl-settings").hidden = !$("#nfl-settings").hidden));
+  const s = state.nfl.settings;
+  $("#nfl-set-ev").value = +(s.ev_threshold * 100).toFixed(2);
+  $("#nfl-set-blend").value = Math.round(s.market_blend * 100);
+  $("#nfl-set-bankroll").value = s.bankroll;
+  $("#nfl-set-kelly").value = s.kelly_mult;
+  let timer;
+  $("#nfl-settings").addEventListener("input", () => {
+    const n = (sel, d) => (Number.isFinite(parseFloat($(sel).value)) ? parseFloat($(sel).value) : d);
+    const boxes = $$("#nfl-book-filter input"), on = boxes.filter((b) => b.checked).map((b) => b.value);
+    state.nfl.settings = {
+      ev_threshold: n("#nfl-set-ev", 5) / 100,
+      market_blend: Math.min(1, Math.max(0, n("#nfl-set-blend", 60) / 100)),
+      bankroll: n("#nfl-set-bankroll", 1000),
+      kelly_mult: Math.min(1, Math.max(0, n("#nfl-set-kelly", 0.25))),
+      books: on.length === boxes.length ? [] : on,
+    };
+    saveNflSettings();
+    clearTimeout(timer);
+    timer = setTimeout(loadNfl, 300);
+  });
+  $("#nfl-score").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      await api("nfl-score", { method: "POST" });
+      state.nfl.status = "running";
+      renderNfl();
+      setTimeout(loadNfl, 3000);
+    } catch (err) { alert(err.message); }
+    btn.disabled = false;
+  });
 }
 
 boot();

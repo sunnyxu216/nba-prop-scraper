@@ -150,3 +150,41 @@ def test_nfl_defaults_are_more_conservative_than_nba():
     assert live.NFL_DEFAULTS["market_blend"] > ev.DEFAULTS["market_blend"]
     assert live.NFL_DEFAULTS["ev_threshold"] > ev.DEFAULTS["ev_threshold"]
     assert live.TRACK_ONLY == {"ANYTIME_TD"}
+
+
+# --------------------------------------------------------------------------- board
+
+def board_row(book, over, under, p_over, market="REC", track=False, outside=False):
+    return {"event_id": 1, "player_name": "X", "market": market, "book": book, "line": 4.5, "over_odds": over,
+            "under_odds": under, "home_team": "MIN", "away_team": "IND", "start_time": "2026-10-25", "team": "MIN",
+            "opp": "IND", "position": "WR", "kind": "count", "projection": 3.6, "p_over": p_over,
+            "p_under": 1 - p_over, "p_push": 0.0, "track_only": track or outside, "outside_training": outside,
+            "low_confidence": False, "reasoning": ["Projection 3.6", "Strong UNDER: blended ..."]}
+
+
+def test_board_best_price_among_my_books():
+    from spm.nfl import board
+    rows = [board_row("bet365", -165, 130, 0.32), board_row("DraftKings", -130, 105, 0.32)]
+    (g,) = board.build(rows, None, ["DraftKings"])
+    assert (g["best"]["book"], g["best"]["decision"], g["at_my_books"]) == ("DraftKings", "UNDER", True)
+    (g,) = board.build(rows, None, None)
+    assert g["best"]["book"] == "bet365"                        # better price when every book counts
+    assert g["reasoning"] == ["Projection 3.6"]                  # the cloud's default-settings verdict is dropped
+
+
+def test_board_never_picks_unavailable_tracked_or_one_sided_unders():
+    from spm.nfl import board
+    (g,) = board.build([board_row("bet365", -165, 130, 0.32)], None, ["DraftKings"])
+    assert g["best"]["decision"] == "PASS" and g["at_my_books"] is False
+    (g,) = board.build([board_row("DraftKings", 300, None, 0.40, market="ANYTIME_TD", track=True)], None, None)
+    assert g["best"]["decision"] == "PASS" and g["best"]["sides"]["UNDER"] is None
+    (g,) = board.build([board_row("DraftKings", -130, 105, 0.20, outside=True)], None, None)
+    assert g["best"]["decision"] == "PASS"
+
+
+def test_board_settings_change_the_decision():
+    from spm.nfl import board
+    rows = [board_row("DraftKings", -110, -110, 0.45)]          # small model edge on the under
+    strict = board.build(rows, {"ev_threshold": 0.05, "market_blend": 0.6}, None)[0]["best"]["decision"]
+    loose = board.build(rows, {"ev_threshold": 0.01, "market_blend": 0.0}, None)[0]["best"]["decision"]
+    assert (strict, loose) == ("PASS", "UNDER")

@@ -1,0 +1,38 @@
+# Hourly NFL scoring for paper trading: every open NFL line gets a projection, EV and decision,
+# logged to `predictions` at fixed checkpoints before kickoff (and `predictions_latest` for the
+# dashboard). Triggered at :37 UTC by Supabase pg_cron (scripts/setup_scheduler.py), 20 minutes
+# after Collect lines. Exits in seconds when no NFL lines are open.
+name: Score NFL
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: score-nfl
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt -r requirements-collector.txt
+      # nflverse history: past seasons never change, the current one is refreshed after 6 hours,
+      # so the cache is saved once per 6-hour block (old entries age out) and restored from the newest.
+      - name: Cache key (6-hour block)
+        id: block
+        run: echo "key=nflverse-$(date -u +%Y%m%d)-$(( $(date -u +%H) / 6 ))" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: data/cache/nfl
+          key: ${{ steps.block.outputs.key }}
+          restore-keys: nflverse-
+      - run: python scripts/score_nfl.py

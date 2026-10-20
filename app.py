@@ -26,6 +26,7 @@ STATE = {
     "season": None, "bt_status": "idle", "bt_progress": 0.0, "bt_error": None,
     "train_status": "idle", "train_progress": 0.0, "train_error": None,
     "yearly_status": "idle", "yearly_progress": 0.0, "yearly_error": None, "scheduler": None,
+    "nfl_status": "idle", "nfl_error": None, "nfl_local": None, "nfl_local_at": None,
 }
 LOCK = threading.Lock()
 
@@ -100,6 +101,65 @@ def run_yearly():
     except Exception as e:
         traceback.print_exc()
         STATE.update(yearly_status="error", yearly_error=str(e))
+
+
+def run_nfl_scoring():
+    """Score the open NFL lines on this PC (same model and code as the cloud job), for the board.
+
+    Only reads from Supabase; the paper-trading log is written by the cloud job alone.
+    """
+    from spm.nfl import board as nfl_board, data as nfl_data, live as nfl_live
+    from spm.store import paper, pg
+    STATE.update(nfl_status="running", nfl_error=None)
+    try:
+        with pg.connect() as conn:
+            offers = paper.open_offers(conn, "nfl", max_age_hours=6)
+        log(f"NFL: scoring {len(offers)} open lines (first run downloads NFL history) ...")
+        nfl_data.download_all(log=log)
+        results = nfl_live.Scorer(log=log).score(offers)
+        STATE.update(nfl_local=nfl_board.from_scored(offers, results),
+                     nfl_local_at=dt.datetime.now(dt.timezone.utc), nfl_status="done")
+        log("NFL: scoring done.")
+    except Exception as e:
+        traceback.print_exc()
+        STATE.update(nfl_status="error", nfl_error=str(e))
+
+
+def nfl_board_rows():
+    """(rows, where they came from, when scored): the cloud's latest scoring, or a newer local run."""
+    rows, origin, when = [], None, None
+    if os.environ.get("DATABASE_URL"):
+        from spm.store import paper, pg
+        try:
+            with pg.connect() as conn:
+                rows = paper.latest(conn, "nfl")
+            origin = "cloud"
+            when = max((r["scored_at"] for r in rows), default=None)
+        except Exception as e:     # e.g. migration 005 not applied yet
+            log(f"NFL: no cloud predictions ({e.__class__.__name__})")
+    local, local_at = STATE["nfl_local"], STATE["nfl_local_at"]
+    if local is not None and (when is None or local_at > when):
+        rows, origin, when = local, "local", local_at
+    return rows, origin, when
+
+
+def nfl_model_info():
+    from spm.nfl import model as nfl_model
+    info = {"trained": nfl_model.Predictor.available(), "paper": None}
+    if info["trained"]:
+        with open(os.path.join(nfl_model.MODEL_DIR, "meta.json"), encoding="utf-8") as f:
+            meta = json.load(f)
+        info.update({k: meta[k] for k in ("trained_at", "data_through", "protocol", "provenance")})
+        info["markets"] = {m: {"kind": v["kind"], "n_train": v["n_train"], "holdout": v["holdout"],
+                               "top_features": v["top_features"][:6]} for m, v in meta["markets"].items()}
+    if os.environ.get("DATABASE_URL"):
+        from spm.store import paper, pg
+        try:
+            with pg.connect() as conn:
+                info["paper"] = paper.summary(conn, "nfl")
+        except Exception as e:
+            info["paper_error"] = f"No paper-trading data yet ({e.__class__.__name__})"
+    return info
 
 
 def lines_to_props(rows):
@@ -229,6 +289,26 @@ class Handler(BaseHTTPRequestHandler):
                 "training": {"status": STATE["train_status"], "progress": STATE["train_progress"],
                              "error": STATE["train_error"]},
             })
+
+        # NFL: independent of the NBA data, so these work while it loads
+        if route == ("GET", "nfl-board"):
+            from spm.nfl import board as nfl_board
+            settings = settings_from(q)
+            rows, origin, when = nfl_board_rows()
+            groups = nfl_board.build(rows, settings, settings.get("books"))
+            return self._send(200, {"props": groups, "origin": origin, "scored_at": str(when) if when else None,
+                                    "books": sorted({r["book"] for r in rows}), "status": STATE["nfl_status"],
+                                    "error": STATE["nfl_error"], "database": bool(os.environ.get("DATABASE_URL"))})
+
+        if route == ("POST", "nfl-score"):
+            if not os.environ.get("DATABASE_URL"):
+                return self._send(400, {"error": "Scoring NFL lines needs DATABASE_URL (the collected lines live in Supabase)"})
+            if STATE["nfl_status"] != "running":
+                threading.Thread(target=run_nfl_scoring, daemon=True).start()
+            return self._send(202, {"ok": True})
+
+        if route == ("GET", "nfl-model"):
+            return self._send(200, nfl_model_info())
 
         if route == ("POST", "refresh"):
             if STATE["status"] != "loading":

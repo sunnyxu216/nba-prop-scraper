@@ -254,3 +254,11 @@ details.stat-why summary { cursor: pointer; font-weight: 550; }
 
 .notice.caution { background: var(--under-soft); border-color: transparent; }
 .settings .span-all { grid-column: 1 / -1; flex-direction: row; color: var(--text); font-size: 13px; }
+
+/* NBA / NFL switch */
+.sport-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; background: var(--surface-2); }
+.sport-switch button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; font-size: 13px;
+  padding: 4px 12px; border-radius: 999px; cursor: pointer; }
+.sport-switch button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.flag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--pass-soft); color: var(--muted); margin-left: 6px; }
+.flag.warn { background: var(--warn-soft); color: var(--text); }
