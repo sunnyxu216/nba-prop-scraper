@@ -108,7 +108,8 @@ class TheOddsAPI(OddsSource):
         horizon = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=days)
         events = sorted(self.http(f"{base}/events", {"apiKey": key}, hdr), key=lambda e: e["commence_time"])
         events = [e for e in events
-                  if dt.datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")) <= horizon]
+                  if dt.datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")) <= horizon
+                  and self._starts_soon(e["commence_time"])]
         markets = cfg["nfl_markets"] if sport == "nfl" else cfg["markets"]
         self.raw, offers = {}, []
         for ev in events[: int(cfg["max_events"])]:

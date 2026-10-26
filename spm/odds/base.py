@@ -61,6 +61,9 @@ class OddsSource:
     name = ""
     licensed = False      # True only for sources whose terms allow commercial use
     sports = ("nba",)
+    # When set (a timedelta), fetch only games starting within this window: the near-start
+    # collector uses it to refresh closing lines every 15 minutes without re-fetching the slate.
+    starting_within = None
 
     def __init__(self, http=None):
         self.http = http or default_http
@@ -73,6 +76,15 @@ class OddsSource:
 
     def fetch(self, sport="nba", days=2):
         raise NotImplementedError
+
+    def _starts_soon(self, start, now=None):
+        """True when no window is set, or `start` (UTC ISO 8601) is within it."""
+        if self.starting_within is None:
+            return True
+        if not start:
+            return False
+        now = now or dt.datetime.now(dt.timezone.utc)
+        return dt.datetime.fromisoformat(start.replace("Z", "+00:00")) <= now + self.starting_within
 
     def _check_sport(self, sport):
         if sport not in self.sports:

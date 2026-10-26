@@ -157,12 +157,13 @@ class ActionNetwork(OddsSource):
     def fetch(self, sport="nba", days=2):
         self._check_sport(sport)
         observed = utc_now()
-        books = self.books()
         self.raw, self.errors, offers = {}, [], []
-        if sport == "nfl":
-            games = self.nfl_games(days)
-        else:
-            games = self.nba_games(days)
+        games = self.nfl_games(days) if sport == "nfl" else self.nba_games(days)
+        now = self.now()
+        games = [g for g in games if self._starts_soon(g["start"], now)]
+        if not games:            # e.g. the near-start collector between games: one scoreboard request, done
+            return offers
+        books = self.books()
         for game in games:
             if game["type"] not in GAME_TYPES[sport]:
                 continue

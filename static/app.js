@@ -849,7 +849,8 @@ async function loadNflModel() {
   const recRow = (label, r) => `<tr><td>${label}</td><td class="num">${r.picks}</td><td class="num">${r.wins}-${r.losses}-${r.pushes}</td>
     <td class="num ${r.units >= 0 ? "pos" : "neg"}">${r.units >= 0 ? "+" : ""}${r.units.toFixed(2)}u</td>
     <td class="num">${r.roi == null ? "–" : signedPct(r.roi)}</td>
-    <td class="num">${r.avg_clv == null ? "–" : `${signedPct(r.avg_clv)} <span class="muted small">(${r.clv_n})</span>`}</td></tr>`;
+    <td class="num">${r.avg_clv == null ? "–" : `${r.avg_clv >= 0 ? "+" : ""}${(r.avg_clv * 100).toFixed(1)} pts <span class="muted small">(${r.clv_n})</span>`}</td>
+    <td class="num">${r.line_moved_for == null ? "–" : `${r.line_moved_for} / ${r.line_moved_against}`}</td></tr>`;
   const graded = Object.values(p.checkpoints).some((r) => r.settled) || (p.track_only && p.track_only.settled);
   const cal = p.calibration.length ? `<h4>Calibration (closing checkpoint, every scored line)</h4>
     <table class="ev-table"><thead><tr><th>Model P(over)</th><th>Actual</th><th>Market</th><th>Lines</th></tr></thead><tbody>
@@ -857,7 +858,7 @@ async function loadNflModel() {
     </tbody></table>` : "";
   $("#nfl-paper").innerHTML = (graded ? "" : `<p class="muted">No graded picks yet: picks are settled the morning after each game.</p>`) +
     `<table class="table"><thead><tr><th>Checkpoint</th><th class="num">Picks</th><th class="num">W-L-P</th><th class="num">Units (1u flat)</th>
-     <th class="num">ROI</th><th class="num">Avg CLV</th></tr></thead><tbody>
+     <th class="num">ROI</th><th class="num">Avg CLV</th><th class="num">Line moved for / against</th></tr></thead><tbody>
      ${Object.entries(p.checkpoints).map(([k, r]) => recRow(cpName[k], r)).join("")}
      ${p.track_only ? recRow("Tracked only (Anytime TD, outside model): would-be picks", p.track_only) : ""}
      </tbody></table>${cal}`;

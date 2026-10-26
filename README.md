@@ -113,6 +113,8 @@ Line collection, grading and health checks run on GitHub Actions and store every
 7. **Workflows** (Actions tab, dispatch-only; times are when Supabase triggers them, UTC):
    - **Collect lines**, hourly at :17: `scripts/collect.py` (Action Network -> `offers`, change-only), for
      NBA (games in the next 2 days) and NFL (next 7 days; props open 5-6 days before kickoff)
+   - **Collect closing lines**, every 15 minutes (:10, :25, :40, :55): the same collector, but only for games
+     starting in the next 45 minutes, so closing lines are at most ~15 minutes old (most runs: 4 requests)
    - **Grade lines**, 10:00 daily: `scripts/grade.py` (ESPN box scores -> `grades`, incremental), NBA and
      NFL (Monday night games end by ~04:00 UTC, so every game is final by then)
    - **Health**, 15:00 daily, checked per sport: fails (emails you) if collection is stale or grading is
@@ -192,8 +194,10 @@ terms are stricter. `models/nfl/meta.json` records the provenance of every datas
 
 **NFL paper trading**: every hour the cloud scores every open NFL line and logs it to `predictions` at four
 checkpoints: first seen, 24h before kickoff, 2h before, and the last run before kickoff (closing). Each pick
-is settled at its own line and price against the box score; closing-line value (CLV) is the pick's EV if
-the same book's closing no-vig price is the truth. `predictions_latest` holds the latest scoring of every
+is settled at its own line and price against the box score. Closing-line value (CLV) is how far the
+same book's fair (no-vig) probability moved toward the pick by the close, in points (about 0 at the closing
+checkpoint by design; positive at earlier checkpoints means the market moved our way); when the line itself
+moved, the direction is counted instead. `predictions_latest` holds the latest scoring of every
 open line, with reasoning, for the dashboard; `predictions_licensed` excludes scraped lines. Results show in
 the NFL Model tab and the weekly health report.
 

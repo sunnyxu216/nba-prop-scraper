@@ -9,6 +9,8 @@ Settings (environment variables):
   SPORTS          comma-separated sports, default "nba" (SPORT, singular, also accepted)
   DAYS_AHEAD_<SPORT>  days of games to fetch for one sport, e.g. DAYS_AHEAD_NFL=7
   DAYS_AHEAD      fallback for sports without their own setting (defaults: nba 2, nfl 7)
+  STARTING_WITHIN_MINUTES  only games starting within this many minutes (the near-start
+                  "Collect closing lines" workflow uses 45, every 15 minutes)
   STATE_CODE      Action Network state for book availability, default "NJ"
   REQUEST_DELAY   seconds between Action Network requests, default 0.25
   DATABASE_URL    Postgres (Supabase). When set, offers go to the database;
@@ -46,6 +48,7 @@ def settings():
     sports = [s.strip().lower() for s in (env("SPORTS") or env("SPORT") or "nba").split(",") if s.strip()]
     return {
         "sports": sports,
+        "starting_within": int(env("STARTING_WITHIN_MINUTES") or 0) or None,
         "days": {sp: int(env(f"DAYS_AHEAD_{sp.upper()}") or env("DAYS_AHEAD") or DEFAULT_DAYS.get(sp, 2))
                  for sp in sports},
         "state": env("STATE_CODE", "NJ"),
@@ -102,6 +105,8 @@ def main():
     cfg = settings()
     sources = odds.enabled_sources()
     for s in sources:
+        if cfg["starting_within"]:
+            s.starting_within = dt.timedelta(minutes=cfg["starting_within"])
         if isinstance(s, action_network.ActionNetwork):
             s.state, s.delay = cfg["state"], cfg["delay"]
     if not sources:

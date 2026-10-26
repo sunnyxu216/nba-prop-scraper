@@ -282,7 +282,7 @@
       </div>
       <div class="card">
         <h3>Paper trading</h3>
-        <p class="muted small">Picks logged by the cloud before kickoff, settled at their own line and price. CLV: the pick's EV if the same book's closing no-vig price is the truth; positive CLV is the earliest sign of a real edge.</p>
+        <p class="muted small">Picks logged by the cloud before kickoff, settled at their own line and price. CLV: how far the market's fair (no-vig) probability moved toward the pick by the close, at the same book and line, in percentage points. It's about 0 at the closing checkpoint by design; consistently positive CLV at earlier checkpoints is the earliest sign of a real edge. When the line itself moved, the direction of the move is counted instead.</p>
         <div id="nfl-paper"><p class="muted">Loading…</p></div>
       </div>
       <div class="card">

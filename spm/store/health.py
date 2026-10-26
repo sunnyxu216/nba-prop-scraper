@@ -130,7 +130,9 @@ def _paper_section(conn):
     def fmt(r):
         return (f"{r['picks']} picks, {r['wins']}-{r['losses']}-{r['pushes']}, {r['units']:+.2f}u"
                 + (f", ROI {r['roi']:+.1%}" if r["roi"] is not None else "")
-                + (f", avg CLV {r['avg_clv']:+.1%}" if r["avg_clv"] is not None else ""))
+                + (f", avg CLV {r['avg_clv'] * 100:+.1f} pts" if r["avg_clv"] is not None else "")
+                + (f", line moved for/against {r['line_moved_for']}/{r['line_moved_against']}"
+                   if r.get("line_moved_for") or r.get("line_moved_against") else ""))
     out = []
     for sport in ("nba", "nfl"):
         try:

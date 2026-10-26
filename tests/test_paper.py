@@ -38,11 +38,21 @@ def test_settle_at_own_line():
     assert paper._settle("OVER", 5.0, 5) == "push" and paper._settle("OVER", 4.5, None) == "void"
 
 
-def test_clv_positive_when_price_beats_close():
-    # took over at +120; it closed -150 / +120 (over now favored): the pick beat the closing line
-    assert paper._clv("OVER", 120, -150, 120) > 0.2
-    assert paper._clv("OVER", -150, -150, 120) < 0
-    assert paper._clv("OVER", 300, 300, None) is None        # yes-only close: no fair price
+def test_clv_is_fair_probability_movement_toward_the_pick():
+    from spm import ev
+    # took the over at +120 / -150 (fair over ~43%); it closed -150 / +120 (fair over ~57%)
+    clv = paper._clv("OVER", 120, -150, -150, 120)
+    assert abs(clv - (ev.no_vig(-150, 120)[0] - ev.no_vig(120, -150)[0])) < 1e-12 and clv > 0.1
+    assert paper._clv("UNDER", 120, -150, -150, 120) < -0.1        # the same move is bad for an under
+    assert paper._clv("OVER", -110, -110, -110, -110) == 0          # unchanged price: zero, not -vig
+    assert paper._clv("OVER", 300, None, 300, None) is None         # yes-only: no fair price
+
+
+@pytest.mark.parametrize("side, pick, close, expected", [
+    ("OVER", 4.5, 5.5, 1), ("OVER", 4.5, 3.5, -1), ("UNDER", 4.5, 3.5, 1), ("UNDER", 4.5, 5.5, -1), ("OVER", 4.5, 4.5, 0),
+])
+def test_line_move(side, pick, close, expected):
+    assert paper._line_move(side, pick, close) == expected
 
 
 # --------------------------------------------------------------------------- database
@@ -132,7 +142,9 @@ def test_summary_settles_at_pick_line_with_clv(conn):
     s = paper.summary(conn, "nfl")["checkpoints"]["close"]
     assert (s["picks"], s["wins"], s["losses"]) == (1, 1, 0)
     assert abs(s["units"] - 1.2) < 1e-9 and abs(s["roi"] - 1.2) < 1e-9
-    assert s["avg_clv"] > 0.09                                  # +120 against a fair -110/-110 close
+    # fair under at the pick (-150 / +120) ~43%, at a -110/-110 close 50%: +~7 points toward the pick
+    from spm import ev
+    assert abs(s["avg_clv"] - (0.5 - ev.no_vig(-150, 120)[1])) < 1e-9 and s["clv_n"] == 1
     assert grading                                              # (grades table comes from migration 002)
 
 

@@ -30,6 +30,7 @@ REPO = "sunnyxu216/nba-prop-scraper"
 SECRET = "github_dispatch_token"
 JOBS = [  # (pg_cron job name, cron in UTC, workflow file)
     ("collect-lines", "17 * * * *", "collect.yml"),
+    ("collect-close", "10,25,40,55 * * * *", "collect-close.yml"),   # games starting in the next 45 min
     ("grade-lines", "0 10 * * *", "grade.yml"),
     ("health", "0 15 * * *", "health.yml"),
     ("score-nba", "42 * * * *", "score-nba.yml"),
