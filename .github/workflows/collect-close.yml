@@ -1,0 +1,34 @@
+# Near-start line collection, so closing lines are at most ~15 minutes old instead of up to an
+# hour (the hourly "Collect lines" run covers the full slate). Every 15 minutes at :10, :25, :40
+# and :55 UTC, Supabase pg_cron (scripts/setup_scheduler.py) triggers this; it fetches only games
+# starting in the next 45 minutes, so most runs make one scoreboard request per sport and stop.
+# Postgres only (no CSV fallback): it needs the DATABASE_URL secret.
+name: Collect closing lines
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: collect-close
+  cancel-in-progress: false
+
+env:
+  ODDS_SOURCES: action_network
+  SPORTS: nba,nfl
+  STATE_CODE: NJ
+  DAYS_AHEAD_NBA: "2"
+  DAYS_AHEAD_NFL: "7"
+  STARTING_WITHIN_MINUTES: "45"
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-collector.txt
+      - run: python scripts/collect.py

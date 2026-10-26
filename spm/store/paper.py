@@ -4,9 +4,14 @@ record(): called by scripts/score_nfl.py each hourly run.
 summary(): ROI, closing-line value (CLV) and calibration, from predictions joined to grades.
 
 Each pick is settled at its own line and price against the actual result (grades.actual), so a
-pick made at 4.5 is graded at 4.5 even if the line closed at 5.5. CLV compares the pick's price
-with the same book's closing price on the same line: the EV the pick would have had if the
-closing no-vig probability is the truth. Positive average CLV is the earliest sign of real edge.
+pick made at 4.5 is graded at 4.5 even if the line closed at 5.5.
+
+Closing-line value (CLV): how far the market moved toward the pick between the pick and the close,
+at the same book and line, in no-vig probability points (fair p of the picked side at close minus
+at the pick). It is ~0 at the closing checkpoint by construction; consistently positive CLV at
+earlier checkpoints is the earliest sign of real edge (it needs far fewer picks than ROI). When the
+line itself moved, probabilities aren't comparable, so the direction of the move is counted instead
+(line_moved_for / line_moved_against). Yes-only prices have no fair probability: no CLV.
 """
 
 import datetime as dt
@@ -120,13 +125,21 @@ def _settle(side, line, actual):
     return "win" if won else "loss"
 
 
-def _clv(side, odds, close_over, close_under):
-    """EV of the pick's price if the closing no-vig probability is true (None if no two-sided close)."""
-    if close_under is None:
+def _clv(side, pick_over, pick_under, close_over, close_under):
+    """No-vig probability of the picked side at close minus at the pick (same line), or None when
+    either price is one-sided."""
+    if pick_under is None or close_under is None:
         return None
-    p_over, p_under, _ = ev.no_vig(close_over, close_under)
-    p = p_over if side == "OVER" else p_under
-    return p * ev.profit_per_unit(odds) - (1 - p)
+    k = 0 if side == "OVER" else 1
+    return ev.no_vig(close_over, close_under)[k] - ev.no_vig(pick_over, pick_under)[k]
+
+
+def _line_move(side, pick_line, close_line):
+    """+1 if the line moved toward the pick (an over taken at 4.5 that closed 5.5), -1 if away, 0 if not."""
+    if close_line == pick_line:
+        return 0
+    toward = close_line > pick_line if side == "OVER" else close_line < pick_line
+    return 1 if toward else -1
 
 
 def graded_picks(conn, sport="nfl", checkpoint="close", include_track_only=False):
@@ -158,7 +171,8 @@ def graded_picks(conn, sport="nfl", checkpoint="close", include_track_only=False
                 outcome = _settle(side, line, actual)
                 row.update(odds=odds, outcome=outcome,
                            profit={"win": ev.profit_per_unit(odds), "loss": -1.0}.get(outcome, 0.0),
-                           clv=_clv(side, odds, close_over, close_under) if close_line == line else None)
+                           clv=_clv(side, over, under, close_over, close_under) if close_line == line else None,
+                           line_move=_line_move(side, line, close_line))
             out.append(row)
         return out
 
@@ -207,4 +221,6 @@ def _record(rows):
             "pushes": sum(r["outcome"] == "push" for r in settled),
             "voids": sum(r["outcome"] == "void" for r in rows), "units": units,
             "roi": units / risked if risked else None,
-            "avg_clv": sum(clv) / len(clv) if clv else None, "clv_n": len(clv)}
+            "avg_clv": sum(clv) / len(clv) if clv else None, "clv_n": len(clv),
+            "line_moved_for": sum(r.get("line_move") == 1 for r in rows),
+            "line_moved_against": sum(r.get("line_move") == -1 for r in rows)}

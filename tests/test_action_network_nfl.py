@@ -92,3 +92,40 @@ def test_nfl_games_respects_horizon_and_kickoff():
                                         ("bet365 NJ", "bet365"), ("BetMGM NJ", "BetMGM")])
 def test_book_name_nfl_books(raw, clean):
     assert an.book_name(raw) == clean
+
+
+def fetch_http(calls):
+    """Recorded NFL scoreboards + WAS @ SF props; counts every request."""
+    props, books = load("an_nfl_props_game.json"), load("an_nfl_books.json")
+    def http(url, params=None, headers=None):
+        params = params or {}
+        calls.append(url.rsplit("/web", 1)[-1])
+        if url.endswith("/v1/scoreboard/nfl"):
+            return load("an_nfl_scoreboard_week7.json") if params.get("week") == 7 else load("an_nfl_scoreboard.json")
+        if url.endswith("/v1/books"):
+            return {"books": [{"id": int(k), "display_name": v} for k, v in books.items()]}
+        if url.endswith("/v2/games/290929/props"):
+            return props.get(params.get("customPickType"), {"player_props": {}})
+        if "/props" in url:
+            return {"player_props": {}}
+        raise AssertionError(url)
+    return http
+
+
+def test_starting_within_fetches_only_imminent_games():
+    calls = []
+    src = an.ActionNetwork(http=fetch_http(calls), delay=0,
+                           now=lambda: dt.datetime(2026, 10, 19, 23, 45, tzinfo=UTC))   # 30 min before WAS @ SF
+    src.starting_within = dt.timedelta(minutes=45)
+    offers = src.fetch("nfl", days=7)
+    assert offers and {o.event_id for o in offers} == {"290929"}
+    assert not any("/v2/games/290930/" in c for c in calls)            # Thursday's game isn't re-fetched
+
+
+def test_starting_within_with_nothing_imminent_is_one_scoreboard_pass():
+    calls = []
+    src = an.ActionNetwork(http=fetch_http(calls), delay=0,
+                           now=lambda: dt.datetime(2026, 10, 19, 18, 0, tzinfo=UTC))    # 6h before
+    src.starting_within = dt.timedelta(minutes=45)
+    assert src.fetch("nfl", days=7) == []
+    assert all("scoreboard" in c for c in calls)                       # no books or props requests
