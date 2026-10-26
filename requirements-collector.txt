@@ -2,3 +2,4 @@
 psycopg[binary]>=3.2
 # MotherDuck archive (scripts/archive.py). MotherDuck supports DuckDB up to 1.5.6.
 duckdb==1.5.6
+pytz  # DuckDB needs it to return timestamps with time zones to Python
