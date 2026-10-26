@@ -1,0 +1,51 @@
+# Hourly NBA scoring for paper trading: every open NBA line gets a projection, EV and decision,
+# logged to `predictions` at fixed checkpoints before tip-off (and `predictions_latest`).
+# Triggered at :42 UTC by Supabase pg_cron (scripts/setup_scheduler.py), after Collect lines.
+# Exits in seconds when no NBA lines are open.
+name: Score NBA
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: score-nba
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt -r requirements-collector.txt
+      # The model bundle (~21 MB) changes only when it's re-published from home, so it's cached by
+      # its version and downloaded from the database once per version.
+      - name: Bundle version
+        id: bundle
+        run: echo "version=$(python scripts/score_nba.py --bundle-version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            data/models
+            data/cache
+            data/bundle_version.txt
+            !data/cache/results_nba.json
+          key: nba-bundle-${{ steps.bundle.outputs.version }}
+      # This season's box scores: fetched incrementally on top of the newest cached copy, saved
+      # once per 6-hour block (they only change after the daily grading run).
+      - name: Results cache key (6-hour block)
+        id: block
+        run: echo "key=nba-results-$(date -u +%Y%m%d)-$(( 10#$(date -u +%H) / 6 ))" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: data/cache/results_nba.json
+          key: ${{ steps.block.outputs.key }}
+          restore-keys: nba-results-
+      - run: python scripts/score_nba.py

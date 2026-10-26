@@ -112,18 +112,25 @@ def weekly_report(conn, now=None):
 
 
 def _paper_section(conn):
-    """NFL paper-trading record (closing checkpoint), or nothing before migration 005 exists."""
+    """Paper-trading record per sport (each pick once, best book), or nothing before migration 005."""
     from . import paper
-    try:
-        with conn.transaction():
-            s = paper.summary(conn, "nfl")
-    except Exception:          # predictions table not created yet
-        return []
 
     def fmt(r):
         return (f"{r['picks']} picks, {r['wins']}-{r['losses']}-{r['pushes']}, {r['units']:+.2f}u"
                 + (f", ROI {r['roi']:+.1%}" if r["roi"] is not None else "")
                 + (f", avg CLV {r['avg_clv']:+.1%}" if r["avg_clv"] is not None else ""))
-    return ["", "### NFL paper trading (all time, closing checkpoint)", "",
-            f"- Recommended bets: {fmt(s['checkpoints']['close'])}",
-            f"- Tracked only (Anytime TD, outside model): {fmt(s['track_only'])}"]
+    out = []
+    for sport in ("nba", "nfl"):
+        try:
+            with conn.transaction():
+                s = paper.summary(conn, sport)
+        except Exception:          # predictions table not created yet
+            return []
+        cp = s["checkpoints"]
+        out += ["", f"### {sport.upper()} paper trading (all time; each pick counted once, at its best book)", "",
+                f"- At close (last hour before start): {fmt(cp['close'])}",
+                f"- 2 hours before: {fmt(cp['t2'])}",
+                f"- When first posted: {fmt(cp['open'])}"]
+        if s["track_only"]["picks"]:
+            out.append(f"- Tracked only (never recommended): {fmt(s['track_only'])}")
+    return out

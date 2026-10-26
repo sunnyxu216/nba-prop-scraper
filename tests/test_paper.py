@@ -24,6 +24,15 @@ def test_checkpoints(hours, expected):
     assert paper.checkpoints(KICK, KICK - dt.timedelta(hours=hours)) == expected
 
 
+def test_same_call_at_several_books_is_one_pick():
+    pick = lambda book, ev, event=1, market="REC": {"event_id": event, "player_key": "jj", "market": market,
+                                                     "book": book, "ev": ev}
+    kept = paper.one_per_bet([pick("bet365", 0.05), pick("FanDuel", 0.09), pick("DraftKings", 0.07),
+                              pick("bet365", 0.06, market="REC_YDS"), pick("bet365", 0.06, event=2)])
+    assert sorted((r["event_id"], r["market"], r["book"]) for r in kept) == [
+        (1, "REC", "FanDuel"), (1, "REC_YDS", "bet365"), (2, "REC", "bet365")]
+
+
 def test_settle_at_own_line():
     assert paper._settle("OVER", 4.5, 5) == "win" and paper._settle("UNDER", 4.5, 5) == "loss"
     assert paper._settle("OVER", 5.0, 5) == "push" and paper._settle("OVER", 4.5, None) == "void"
@@ -140,3 +149,18 @@ def test_track_only_picks_counted_separately(conn):
     s = paper.summary(conn, "nfl")
     assert s["checkpoints"]["close"]["picks"] == 0              # not a recommended bet
     assert (s["track_only"]["picks"], s["track_only"]["losses"]) == (1, 1)
+
+
+@needs_db
+def test_track_only_no_call_on_yes_only_market_is_not_a_pick(conn):
+    """Anytime TD with only a 'yes' price: a model 'no' call can't be bet, so it isn't counted."""
+    o = setup_offer(conn, under=None)
+    o["market"] = "REC"
+    paper.record(conn, [o], [result("PASS", call="UNDER", track=True)], now=KICK - dt.timedelta(minutes=30))
+    with conn.cursor() as cur:
+        cur.execute("""insert into grades (event_id, player_key, market, book, sport, source, player_name, line,
+                       over_odds, under_odds, closing_observed_at, actual, result)
+                       values (%s, %s, 'REC', 'bet365', 'nfl', 'action_network', 'Justin Jefferson', 5.5, -150, null,
+                       %s, 7, 'over')""", (o["event_id"], o["player_key"], KICK - dt.timedelta(minutes=20)))
+    conn.commit()
+    assert paper.summary(conn, "nfl")["track_only"]["picks"] == 0

@@ -135,18 +135,24 @@ def graded_picks(conn, sport="nfl", checkpoint="close", include_track_only=False
         cur.execute("""
             select p.player_name, p.market, p.book, p.line::float, p.over_odds, p.under_odds, p.decision,
                    p.model_call, p.track_only, p.p_over, p.p_under, p.p_push, p.market_prob_over,
-                   g.actual::float, g.result, g.line::float, g.over_odds, g.under_odds, p.scored_at
+                   g.actual::float, g.result, g.line::float, g.over_odds, g.under_odds, p.scored_at,
+                   p.event_id, p.player_key, p.ev_over, p.ev_under
             from predictions p
             join grades g on g.event_id = p.event_id and g.player_key = p.player_key
                          and g.market = p.market and g.book = p.book
             where p.sport = %s and p.checkpoint = %s""", (sport, checkpoint))
         out = []
         for (name, market, book, line, over, under, decision, call, track, p_over, p_under, p_push, mkt,
-             actual, result, close_line, close_over, close_under, scored_at) in cur.fetchall():
+             actual, result, close_line, close_over, close_under, scored_at, event_id, player_key,
+             ev_over, ev_under) in cur.fetchall():
             side = call if include_track_only else decision
+            if side == "UNDER" and under is None:   # yes-only market: a "no" call has no price to bet at
+                side = "PASS"
             row = {"player_name": name, "market": market, "book": book, "line": line, "side": side,
                    "track_only": track, "p_over": p_over, "p_under": p_under, "p_push": p_push,
-                   "market_prob_over": mkt, "actual": actual, "void": result == "void", "scored_at": scored_at}
+                   "market_prob_over": mkt, "actual": actual, "void": result == "void", "scored_at": scored_at,
+                   "event_id": event_id, "player_key": player_key,
+                   "ev": ev_over if side == "OVER" else ev_under if side == "UNDER" else None}
             if side in ("OVER", "UNDER"):
                 odds = over if side == "OVER" else under
                 outcome = _settle(side, line, actual)
@@ -157,16 +163,29 @@ def graded_picks(conn, sport="nfl", checkpoint="close", include_track_only=False
         return out
 
 
+def one_per_bet(rows):
+    """The same call at several books is one bet, not several: keep the book with the best EV
+    (the one you'd actually bet) for each player, market and game."""
+    best = {}
+    for r in rows:
+        key = (r["event_id"], r["player_key"], r["market"])
+        if key not in best or (r["ev"] or 0) > (best[key]["ev"] or 0):
+            best[key] = r
+    return list(best.values())
+
+
 def summary(conn, sport="nfl"):
-    """Per checkpoint: picks, record, units won (1u flat), ROI, average CLV; plus model calibration."""
+    """Per checkpoint: picks, record, units won (1u flat), ROI, average CLV; plus model calibration.
+
+    Each pick counts once (best book); calibration uses every scored line."""
     out = {"checkpoints": {}, "calibration": [], "track_only": None}
     for cp in CHECKPOINTS:
         rows = [r for r in graded_picks(conn, sport, cp) if r["side"] in ("OVER", "UNDER")]
-        out["checkpoints"][cp] = _record(rows)
+        out["checkpoints"][cp] = _record(one_per_bet(rows))
     # track-only markets (Anytime TD): how the model's would-be picks did
     tracked = [r for r in graded_picks(conn, sport, "close", include_track_only=True)
                if r["track_only"] and r["side"] in ("OVER", "UNDER")]
-    out["track_only"] = _record(tracked)
+    out["track_only"] = _record(one_per_bet(tracked))
     # calibration: every scored line at close, model P(over) vs what happened
     rows = [r for r in graded_picks(conn, sport, "close") if not r["void"] and r["actual"] is not None]
     for lo in [i / 10 for i in range(10)]:

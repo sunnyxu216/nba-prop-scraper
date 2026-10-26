@@ -178,22 +178,7 @@ def lines_to_props(rows):
 
 def cloud_lines_to_props(ds, rows):
     """Supabase offers_current rows -> props (resolving each player's team and the matchup)."""
-    out = []
-    for r in rows:
-        p = ds.find_player(r["player_name"])
-        team = (p.team if p else None) or r["team"]
-        home = team == r["home_team"] if team in (r["home_team"], r["away_team"]) else None
-        try:
-            out.append(props.clean({
-                "player": p.name if p else r["player_name"], "stat": r["market"], "line": r["line"],
-                "over_odds": r["over_odds"], "under_odds": r["under_odds"],
-                "opponent": (r["away_team"] if home else r["home_team"]) if home is not None else "",
-                "home": home, "book": r["book"], "source": r["source"],
-                "game_date": (r["start_time"] - dt.timedelta(hours=5)).date().isoformat(),  # US Eastern date
-            }))
-        except ValueError:
-            continue
-    return out
+    return [p for p in service.offers_to_props(ds, rows) if p]
 
 
 STALE_LINES_AFTER = dt.timedelta(minutes=75)   # the collector runs hourly

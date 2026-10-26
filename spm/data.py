@@ -21,7 +21,7 @@ from collections import defaultdict
 # When packaged as an .exe, user data (props.csv, cache, config.json) lives next to the executable.
 ROOT = (os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
         else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(ROOT, "data")
+DATA_DIR = os.environ.get("SPM_DATA_DIR") or os.path.join(ROOT, "data")   # override: cloud jobs, backfills
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 
 FIRST_SEASON = 2015              # first season of history (2015-16; play-type tracking starts here)

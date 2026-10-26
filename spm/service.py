@@ -1,10 +1,11 @@
 """Glue between the dataset, models, EV maths and reasoning; returns JSON-ready dicts."""
 
+import datetime as dt
 import statistics
 
 import numpy as np
 
-from . import advanced, backtest, ev, features, lineups, ml, model, reasoning
+from . import advanced, backtest, ev, features, lineups, ml, model, props, reasoning
 from .data import FIRST_SEASON, TEAMS, norm_name, season_label
 
 SEASON_STATS = ("PTS", "REB", "AST", "3PM", "STL", "BLK", "TOV", "PRA")
@@ -19,8 +20,11 @@ def _r(x, d=1):
 class Engine:
     """Everything needed to project a player: data, the ML model (if trained) and live features."""
 
-    def __init__(self, ds, log=print):
+    def __init__(self, ds, log=print, date=None, injuries=None):
+        """date (YYYY-MM-DD): score games on that day instead of today (backfills).
+        injuries: a fixed injury report instead of ESPN's live one ({} = nobody listed)."""
         self.ds = ds
+        self.date, self._injuries = date, injuries
         self.predictor = ml.load_predictor(log)
         self.store = None
         if self.predictor:
@@ -35,6 +39,8 @@ class Engine:
 
     def injuries(self):
         """Latest injury report keyed by player id (ESPN, refreshed every 15 minutes)."""
+        if self._injuries is not None:
+            return self._injuries
         return lineups.fetch_injuries(self.ds, log=lambda *a: None)
 
     def _lineup_info(self, player, opponent, info, inj):
@@ -63,7 +69,7 @@ class Engine:
         cal = getattr(self.ds, "calibration", None)
         if self.predictor:
             inj = self.injuries()
-            live = self.store.live(player.id, opponent, home, b2b, injuries=inj)
+            live = self.store.live(player.id, opponent, home, b2b, date=self.date, injuries=inj)
             if live:
                 X, info = live
                 i = features.KEYS.index(stat)
@@ -100,6 +106,30 @@ def _group_key(prop, player):
 
 def _book_allowed(book, books):
     return not books or not book or book.lower() in books
+
+
+def offers_to_props(ds, rows, b2b_teams=()):
+    """Collected offers (offers_current rows) -> props, resolving each player's team and the matchup.
+
+    Parallel to rows: None where a row can't be a prop. b2b_teams: teams that played the day
+    before (the model can't see that from the line alone).
+    """
+    out = []
+    for r in rows:
+        p = ds.find_player(r["player_name"])
+        team = (p.team if p else None) or r["team"]
+        home = team == r["home_team"] if team in (r["home_team"], r["away_team"]) else None
+        try:
+            out.append(props.clean({
+                "player": p.name if p else r["player_name"], "stat": r["market"], "line": r["line"],
+                "over_odds": r["over_odds"], "under_odds": r["under_odds"],
+                "opponent": (r["away_team"] if home else r["home_team"]) if home is not None else "",
+                "home": home, "book": r["book"], "source": r["source"], "b2b": team in b2b_teams,
+                "game_date": (r["start_time"] - dt.timedelta(hours=5)).date().isoformat(),  # US Eastern date
+            }))
+        except ValueError:
+            out.append(None)
+    return out
 
 
 def evaluate_board(engine, props, settings=None):
