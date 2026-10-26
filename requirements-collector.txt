@@ -1,2 +1,4 @@
 # Collector-only dependencies (GitHub Actions installs just these)
 psycopg[binary]>=3.2
+# MotherDuck archive (scripts/archive.py). MotherDuck supports DuckDB up to 1.5.6.
+duckdb==1.5.6

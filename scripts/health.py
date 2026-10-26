@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from spm import envfile  # noqa: E402
-from spm.store import grading, health, pg  # noqa: E402
+from spm.store import archive, grading, health, pg  # noqa: E402
 
 SPORTS = ("nba", "nfl")
 
@@ -29,6 +29,8 @@ def main():
         statuses = [health.status(conn, sport=sp, check_grading=sp in grading.GRADED_SPORTS) for sp in SPORTS]
         report = health.weekly_report(conn) if args.report else ""
     found = [f"{s['sport'].upper()}: {p}" for s in statuses for p in health.problems(s)]
+    with pg.connect() as conn:
+        found += archive.problems(conn) + health.size_problems(conn)
     summary = ["## Pipeline health: " + ("FAILING" if found else "OK"), ""]
     for s in statuses:
         last = s["last_seen"].strftime("%Y-%m-%d %H:%M UTC") if s["last_seen"] else "never"

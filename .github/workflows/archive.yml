@@ -1,0 +1,31 @@
+# Nightly archive: copy finished games from Supabase to MotherDuck (verified per game), then
+# delete rows older than 7 days from Supabase so it stays within the free tier.
+# Triggered daily at 10:30 UTC by Supabase pg_cron (scripts/setup_scheduler.py), after grading.
+name: Archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      no_delete:
+        description: "Copy and verify only (don't remove anything from Supabase)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-collector.txt
+      - run: python scripts/archive.py ${{ inputs.no_delete && '--no-delete' || '' }}

@@ -57,6 +57,17 @@ def status(conn, now=None, sport=None, check_grading=True):
             "stale_games": stale_games, "ungraded_old_games": ungraded}
 
 
+SIZE_LIMIT_MB = 400        # of Supabase's 500 MB free tier: alert well before writes are blocked
+
+
+def size_problems(conn):
+    with conn.cursor() as cur:
+        cur.execute("select pg_database_size(current_database())")
+        mb = cur.fetchone()[0] / 1e6
+    return [f"Database is {mb:.0f} MB of the 500 MB free tier (alert above {SIZE_LIMIT_MB} MB): "
+            f"check the Archive workflow is deleting old rows."] if mb > SIZE_LIMIT_MB else []
+
+
 def problems(s):
     """Human-readable failures for a status() dict (empty list = healthy)."""
     out = []
@@ -112,8 +123,9 @@ def weekly_report(conn, now=None):
 
 
 def _paper_section(conn):
-    """Paper-trading record per sport (each pick once, best book), or nothing before migration 005."""
-    from . import paper
+    """Paper-trading record per sport (each pick once, best book; full history from the archive),
+    or nothing before migration 005."""
+    from . import archive
 
     def fmt(r):
         return (f"{r['picks']} picks, {r['wins']}-{r['losses']}-{r['pushes']}, {r['units']:+.2f}u"
@@ -123,7 +135,7 @@ def _paper_section(conn):
     for sport in ("nba", "nfl"):
         try:
             with conn.transaction():
-                s = paper.summary(conn, sport)
+                s = archive.paper_summary(conn, sport)
         except Exception:          # predictions table not created yet
             return []
         cp = s["checkpoints"]

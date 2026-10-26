@@ -153,10 +153,10 @@ def nfl_model_info():
         info["markets"] = {m: {"kind": v["kind"], "n_train": v["n_train"], "holdout": v["holdout"],
                                "top_features": v["top_features"][:6]} for m, v in meta["markets"].items()}
     if os.environ.get("DATABASE_URL"):
-        from spm.store import paper, pg
+        from spm.store import archive, pg
         try:
             with pg.connect() as conn:
-                info["paper"] = paper.summary(conn, "nfl")
+                info["paper"] = archive.paper_summary(conn, "nfl")
         except Exception as e:
             info["paper_error"] = f"No paper-trading data yet ({e.__class__.__name__})"
     return info

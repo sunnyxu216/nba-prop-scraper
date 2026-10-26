@@ -34,6 +34,7 @@ JOBS = [  # (pg_cron job name, cron in UTC, workflow file)
     ("health", "0 15 * * *", "health.yml"),
     ("score-nba", "42 * * * *", "score-nba.yml"),
     ("score-nfl", "37 * * * *", "score-nfl.yml"),   # 20 min after collection; no-op without NFL lines
+    ("archive", "30 10 * * *", "archive.yml"),      # after grading: copy to MotherDuck, trim Supabase
 ]
 
 
