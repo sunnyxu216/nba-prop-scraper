@@ -41,6 +41,16 @@ def test_grading_backlog():
     assert p.startswith("Grading is behind: 2 games")
 
 
+def test_dropped_game():
+    (p,) = health.problems({**st(), "stale_games": ["OKC @ SAS"]})
+    assert p.startswith("Games dropped by the collector: OKC @ SAS")
+
+
+def test_dropped_game_not_repeated_when_everything_is_stale():
+    (p,) = health.problems({**st(last_seen_hours_ago=5), "stale_games": ["OKC @ SAS"]})
+    assert p.startswith("Collection is stale")
+
+
 # --------------------------------------------------------------------------- database
 
 envfile.load()
@@ -97,3 +107,15 @@ def test_status_per_sport(conn):
     pg.record(conn, [old])
     assert health.status(conn, now=NOW, sport="nfl", check_grading=False)["ungraded_old_games"] == 0
     assert health.status(conn, now=NOW, sport="nfl")["ungraded_old_games"] == 1
+
+
+@needs_db
+def test_dropped_game_from_database(conn):
+    """The collector keeps running (fresh lines for tomorrow) but stopped refreshing tonight's late game."""
+    from spm.store import pg
+    pg.record(conn, [offer("2026-10-21T01:30:00Z", "2026-10-20T15:17:00Z", "late")])          # 2h43m old
+    pg.record(conn, [offer("2026-10-21T23:00:00Z", "2026-10-20T17:17:00Z", "tomorrow")])
+    s = health.status(conn, now=NOW, sport="nba")
+    assert s["stale_games"] == ["BOS @ DET"]
+    (p,) = health.problems(s)
+    assert p.startswith("Games dropped by the collector: BOS @ DET")

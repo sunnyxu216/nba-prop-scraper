@@ -196,6 +196,20 @@ def cloud_lines_to_props(ds, rows):
     return out
 
 
+STALE_LINES_AFTER = dt.timedelta(minutes=75)   # the collector runs hourly
+
+
+def stale_line_notes(rows, now=None):
+    """Warnings for games whose newest line is older than one collector run (lines may have moved)."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    newest = {}
+    for r in rows:
+        game = f"{r['away_team']} @ {r['home_team']}"
+        newest[game] = max(newest.get(game, r["last_seen"]), r["last_seen"])
+    return [f"Stale: {game} lines were last updated {(now - seen).total_seconds() / 60:.0f} min ago "
+            f"and may have moved since" for game, seen in newest.items() if now - seen > STALE_LINES_AFTER]
+
+
 def settings_from(q):
     s = {}
     if "bias_adjust" in q:
@@ -365,7 +379,7 @@ class Handler(BaseHTTPRequestHandler):
             newest = max((r["last_seen"] for r in rows), default=None)
             note = (f"Supabase: {len(fresh)} lines for upcoming games (collected "
                     f"{newest:%b %d %H:%M} UTC)") if newest else "Supabase: no open lines for upcoming games"
-            return self._send(200, {"imported": len(fresh), "notes": [note]})
+            return self._send(200, {"imported": len(fresh), "notes": [note] + stale_line_notes(rows)})
 
         if route == ("POST", "odds-import"):
             summary = collector.snapshot(ds, log=log)

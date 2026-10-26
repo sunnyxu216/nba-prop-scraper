@@ -6,6 +6,8 @@ checks look at what the database shows actually happened:
 * collection is stale: games are coming up but no line has been seen recently
   (offers_current.last_seen is refreshed by every collector run, even when no
   price moved, so it doubles as a heartbeat);
+* a game was dropped: it starts soon and had lines, but the collector stopped refreshing them
+  while still running for other games (the heartbeat alone can't see this);
 * grading is behind: games that finished long ago still have ungraded lines.
 
 Checked per sport, so one sport's healthy collector can't hide another's broken one.
@@ -16,6 +18,8 @@ import datetime as dt
 STALE_AFTER = dt.timedelta(hours=3)       # collector runs hourly; allow for GitHub delays
 UPCOMING_WINDOW = dt.timedelta(hours=36)  # only expect fresh lines when games are this close
 GRADING_GRACE = dt.timedelta(hours=36)    # daily grader + box-score delays
+GAME_WINDOW = dt.timedelta(hours=12)      # games starting this soon must have fresh lines ...
+GAME_STALE_AFTER = dt.timedelta(hours=2)  # ... seen within this long (two missed hourly runs)
 
 
 def status(conn, now=None, sport=None, check_grading=True):
@@ -32,6 +36,13 @@ def status(conn, now=None, sport=None, check_grading=True):
         cur.execute("select count(*) from events where start_time between %s and %s "
                     "and (%s::text is null or sport = %s)", (now, now + UPCOMING_WINDOW, sport, sport))
         upcoming = cur.fetchone()[0]
+        cur.execute("""
+            select e.away_team || ' @ ' || e.home_team from events e
+            join offers_current oc on oc.event_id = e.id
+            where e.start_time between %s and %s and (%s::text is null or e.sport = %s)
+            group by e.id having max(oc.last_seen) < %s order by min(e.start_time)""",
+                    (now, now + GAME_WINDOW, sport, sport, now - GAME_STALE_AFTER))
+        stale_games = [r[0] for r in cur.fetchall()]
         ungraded = 0
         if check_grading:
             cur.execute("""
@@ -43,7 +54,7 @@ def status(conn, now=None, sport=None, check_grading=True):
                   and (%s::text is null or e.sport = %s)""", (now - GRADING_GRACE, sport, sport))
             ungraded = cur.fetchone()[0]
     return {"now": now, "sport": sport, "last_seen": last_seen, "upcoming_games": upcoming,
-            "ungraded_old_games": ungraded}
+            "stale_games": stale_games, "ungraded_old_games": ungraded}
 
 
 def problems(s):
@@ -53,6 +64,10 @@ def problems(s):
         age = "never" if s["last_seen"] is None else f"{(s['now'] - s['last_seen']).total_seconds() / 3600:.1f}h ago"
         out.append(f"Collection is stale: {s['upcoming_games']} games in the next "
                    f"{UPCOMING_WINDOW.total_seconds() / 3600:.0f}h, but lines were last seen {age}.")
+    elif s.get("stale_games"):
+        out.append(f"Games dropped by the collector: {', '.join(s['stale_games'])} start within "
+                   f"{GAME_WINDOW.total_seconds() / 3600:.0f}h but their lines haven't been refreshed in "
+                   f"{GAME_STALE_AFTER.total_seconds() / 3600:.0f}h.")
     if s["ungraded_old_games"]:
         out.append(f"Grading is behind: {s['ungraded_old_games']} games finished over "
                    f"{GRADING_GRACE.total_seconds() / 3600:.0f}h ago still have ungraded lines.")

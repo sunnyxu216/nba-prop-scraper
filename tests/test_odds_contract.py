@@ -29,9 +29,9 @@ def load(name):
 
 
 def an_http(fail_market=None):
-    """Fake Action Network: today's NBA scoreboard + recorded points market; the recorded NFL weeks + props."""
+    """Fake Action Network: the recorded opening-night NBA scoreboard (Oct 20) + points market;
+    the recorded NFL weeks + props."""
     books = load("an_books.json") | load("an_nfl_books.json")
-    today = dt.date.today().strftime("%Y%m%d")
     nfl_props = load("an_nfl_props_game.json")
 
     def http(url, params=None, headers=None):
@@ -39,7 +39,7 @@ def an_http(fail_market=None):
         if url.endswith("/v1/books"):
             return {"books": [{"id": int(k), "display_name": v} for k, v in books.items()]}
         if url.endswith("/v1/scoreboard/nba"):
-            return load("an_scoreboard.json") if params.get("date") == today else {"games": []}
+            return load("an_scoreboard.json") if params.get("date") == "20261020" else {"games": []}
         if url.endswith("/v1/scoreboard/nfl"):
             return load("an_nfl_scoreboard_week7.json" if params.get("week") == 7 else "an_nfl_scoreboard.json")
         if url.endswith("/v2/games/290929/props"):
@@ -127,9 +127,34 @@ def test_unknown_sport_rejected():
 
 
 def test_partial_failure_keeps_other_markets():
-    source = an.ActionNetwork(http=an_http(fail_market="core_bet_type_23_rebounds"), delay=0)
-    offers = source.fetch("nba", days=1)
+    source = an.ActionNetwork(http=an_http(fail_market="core_bet_type_23_rebounds"), delay=0, now=lambda: NFL_NOW)
+    offers = source.fetch("nba", days=2)
     assert offers and source.errors and "core_bet_type_23_rebounds" in source.errors[0]
+
+
+# BOS @ DET tips 2026-10-20 19:00 UTC; the scoreboard is listed under the Eastern date 20261020
+@pytest.mark.parametrize("now, fetched", [
+    (dt.datetime(2026, 10, 20, 14, 0, tzinfo=dt.timezone.utc), True),    # game day, morning
+    (dt.datetime(2026, 10, 19, 23, 30, tzinfo=dt.timezone.utc), True),   # day before, after 00:00 UTC is near
+    (dt.datetime(2026, 10, 20, 18, 59, tzinfo=dt.timezone.utc), True),   # a minute before tip
+    (dt.datetime(2026, 10, 20, 19, 0, tzinfo=dt.timezone.utc), False),   # tipped off: lines are live now
+])
+def test_nba_games_use_eastern_date_and_skip_started(now, fetched):
+    src = an.ActionNetwork(http=an_http(), delay=0, now=lambda: now)
+    assert bool(src.nba_games(days=1 if now.day == 20 else 2)) == fetched
+
+
+def test_late_games_kept_after_utc_midnight():
+    """01:17 UTC is still the previous evening in the US: tonight's 9:30 PM ET game must be fetched."""
+    seen = []
+    board = {"games": [{"id": 1, "start_time": "2026-10-21T01:30:00.000Z", "type": "reg", "teams": [],
+                        "home_team_id": None, "away_team_id": None}]}
+    def http(url, params=None, headers=None):
+        seen.append(params["date"])
+        return board if params["date"] == "20261020" else {"games": []}
+    src = an.ActionNetwork(http=http, delay=0, now=lambda: dt.datetime(2026, 10, 21, 1, 17, tzinfo=dt.timezone.utc))
+    assert [g["id"] for g in src.nba_games(days=2)] == [1]
+    assert seen == ["20261020", "20261021"]
 
 
 def test_the_odds_api_respects_horizon():

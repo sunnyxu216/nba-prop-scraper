@@ -125,6 +125,19 @@ class ActionNetwork(OddsSource):
     def games(self, day):
         return parse_games(self._get("/v1/scoreboard/nba", {"date": day.strftime("%Y%m%d")}))
 
+    def nba_games(self, days):
+        """Games on the next `days` US Eastern dates that haven't tipped off yet.
+
+        The scoreboard is listed per Eastern date, so the day is counted from US Eastern
+        time (UTC-5, as in grading), not UTC: after 00:00 UTC (7-8 PM Eastern) a UTC
+        date would skip tonight's late games and lose their closing lines.
+        """
+        now = self.now()
+        today = (now - dt.timedelta(hours=5)).date()
+        games = [g for i in range(days) for g in self.games(today + dt.timedelta(days=i))]
+        return [g for g in games
+                if not g["start"] or dt.datetime.fromisoformat(g["start"].replace("Z", "+00:00")) > now]
+
     def nfl_games(self, days):
         """Games of the current and next NFL week that kick off in the next `days` days."""
         now = self.now()
@@ -149,7 +162,7 @@ class ActionNetwork(OddsSource):
         if sport == "nfl":
             games = self.nfl_games(days)
         else:
-            games = [g for i in range(days) for g in self.games(dt.date.today() + dt.timedelta(days=i))]
+            games = self.nba_games(days)
         for game in games:
             if game["type"] not in GAME_TYPES[sport]:
                 continue
