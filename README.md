@@ -122,7 +122,7 @@ Line collection, grading and health checks run on GitHub Actions and store every
    - **Score NFL**, hourly at :37: `scripts/score_nfl.py` scores every open NFL line with the trained
      model and logs it for paper trading (exits in seconds when no NFL lines are open)
    - **Archive**, 10:30 daily: `scripts/archive.py` copies finished games to MotherDuck and trims
-     Supabase to the last 7 days (see "Long-term archive" below)
+     Supabase to the last 3 days (see "Long-term archive" below)
    - **Tests**, every push: pytest, with a throwaway Postgres for the database tests
 
 8. **Archive (MotherDuck):** sign up at motherduck.com (free plan: 10 GB), create an access token
@@ -132,14 +132,14 @@ Line collection, grading and health checks run on GitHub Actions and store every
 ### Long-term archive
 
 Supabase's free tier holds 500 MB, but the price history grows ~20 MB a day during the NBA season. So
-Supabase keeps only the last 7 days, and everything older lives in MotherDuck (hosted DuckDB, columnar,
+Supabase keeps only the last 3 days, and everything older lives in MotherDuck (hosted DuckDB, columnar,
 roughly 10x smaller). Every night after grading, `scripts/archive.py`:
 
 1. copies every finished game's price history, grades, paper-trading picks and box scores to the MotherDuck
    database `props` (same tables and columns, `sport` and `source` included), replacing earlier copies, so
    re-runs and regrades are safe. DuckDB reads Supabase attached **read-only**;
 2. checks each game's row counts match;
-3. deletes from Supabase only games older than 7 days that are archived, verified, unchanged since and fully
+3. deletes from Supabase only games older than 3 days that are archived, verified, unchanged since and fully
    graded. Never deleted: `events`, the box scores (`results`, `results_nfl`: the NBA scorer rebuilds this
    season's game logs from them) and `artifacts` (the NBA model bundle). `archive_log` records what was
    copied and when it was removed;
@@ -307,7 +307,7 @@ scripts/health.py   daily "Health" workflow: fails (emails you) on missing succe
 scripts/grade.py    grade pending finished games (daily "Grade lines" workflow); --regrade-since, --check-source
 scripts/score_nfl.py  score open NFL lines + log paper trades (hourly "Score NFL" workflow)
 spm/store/paper.py  paper trading: checkpoints, predictions log, ROI / CLV / calibration
-spm/store/archive.py  MotherDuck archive: copy + verify, trim Supabase to 7 days, full-history paper summary
+spm/store/archive.py  MotherDuck archive: copy + verify, trim Supabase to 3 days, full-history paper summary
 scripts/archive.py  nightly archive ("Archive" workflow); --no-delete copies and verifies only
 migrations/         versioned schema (001_init.sql: sports, sources, events, offers, offers_current,
                     offers_licensed view; 002_grading.sql: results, grades, grades_licensed view;

@@ -78,6 +78,8 @@ def record(conn, offers, results, sport="nfl", now=None):
                 "p_under": r["p_under"], "p_push": r["p_push"], "decision": r["decision"],
                 "model_call": r["model_call"], "track_only": r["track_only"], "low_confidence": r["low_confidence"]}
         for cp in checkpoints(o["start_time"], now):
+            if not would_bet and cp != "close":   # passes: only the closing one is needed (calibration);
+                continue                          # earlier ones were most of the table and say nothing new
             log_rows.append({**base, "checkpoint": cp, "price_seen_at": o["last_seen"],
                              "market_prob_over": r["market_prob_over"], "ev_over": r["ev_over"],
                              "ev_under": r["ev_under"], "tier": r["tier"], "stake_pct": r["stake_pct"],

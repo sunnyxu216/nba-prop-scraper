@@ -123,8 +123,20 @@ def test_record_checkpoints_and_latest(conn):
 @needs_db
 def test_pass_rows_keep_no_reasoning_and_skips_ignored(conn):
     o = setup_offer(conn)
-    paper.record(conn, [o, o], [result("PASS"), {"skipped": "no history"}], now=KICK - dt.timedelta(hours=48))
+    paper.record(conn, [o, o], [result("PASS"), {"skipped": "no history"}], now=KICK - dt.timedelta(minutes=30))
     assert rows(conn, "select decision, reasoning is null from predictions") == [("PASS", True)]
+
+
+@needs_db
+def test_passes_logged_only_at_close(conn):
+    o = setup_offer(conn)
+    for hours in (48, 20, 2):                                   # open, t24, t2: passes not logged
+        assert paper.record(conn, [o], [result("PASS")], now=KICK - dt.timedelta(hours=hours)) == (0, 1)
+    paper.record(conn, [o], [result("PASS")], now=KICK - dt.timedelta(minutes=30))
+    assert rows(conn, "select checkpoint from predictions") == [("close",)]
+    # a pick still gets every checkpoint, and so does a track-only call (model_call isn't PASS)
+    paper.record(conn, [o], [result("PASS", call="UNDER", track=True)], now=KICK - dt.timedelta(hours=48))
+    assert rows(conn, "select count(*) from predictions where checkpoint = 'open'") == [(1,)]
 
 
 @needs_db

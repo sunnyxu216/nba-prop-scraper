@@ -15,6 +15,7 @@ finds everything locally and never tries stats.nba.com.
 
 import datetime as dt
 import glob
+import gzip
 import io
 import os
 import tarfile
@@ -50,7 +51,9 @@ def bundle_paths(data_dir=None, current=None):
 def make_bundle(data_dir=None, current=None):
     data_dir = data_dir or data.DATA_DIR
     buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz", compresslevel=9) as tar:
+    # gzip's header has a timestamp: fixed at 0 so the same files always give the same version
+    with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=9, mtime=0) as gz, \
+            tarfile.open(fileobj=gz, mode="w") as tar:
         for name in bundle_paths(data_dir, current):
             info = tar.gettarinfo(os.path.join(data_dir, name), arcname=name)
             info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""   # same files -> same hash

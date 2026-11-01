@@ -26,7 +26,7 @@ import json
 import os
 import urllib.parse
 
-HOT_DAYS = 7                                  # days of data kept in Supabase
+HOT_DAYS = 3                                  # days of data kept in Supabase
 SETTLED_AFTER = dt.timedelta(hours=8)         # a game this old has had its grading run
 BY_EVENT = ("offers", "grades", "predictions")   # tables archived per game (event_id)
 # Box scores, archived per game date but never deleted from Supabase: the NBA scorer rebuilds this

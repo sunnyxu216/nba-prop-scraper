@@ -1,6 +1,6 @@
-"""Nightly archive: copy finished games to MotherDuck, then trim Supabase to the last 7 days.
+"""Nightly archive: copy finished games to MotherDuck, then trim Supabase to the last 3 days.
 
-    python scripts/archive.py              # copy + verify, delete verified games older than 7 days,
+    python scripts/archive.py              # copy + verify, delete verified games older than 3 days,
                                            # refresh the paper-trading summary
     python scripts/archive.py --no-delete  # copy + verify only (nothing removed from Supabase)
 
@@ -39,7 +39,7 @@ def main():
                 print("--no-delete: nothing removed from Supabase.")
             else:
                 gone = archive.delete(conn, archive.deletable(conn))
-                print("Removed from Supabase (older than 7 days, archived and verified): "
+                print("Removed from Supabase (older than 3 days, archived and verified): "
                       + (", ".join(f"{n:,} {tb}" for tb, n in gone.items() if n) or "nothing yet"))
             sums = archive.store_summaries(con, conn)
             print(f"Paper-trading summary refreshed for: {', '.join(sums) or 'no sports yet'}")
