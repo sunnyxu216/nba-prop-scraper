@@ -30,8 +30,8 @@ sys.path.insert(0, ROOT)
 from spm import envfile  # noqa: E402
 from spm.store import pg  # noqa: E402
 
-BIG_TABLES = ("offers", "predictions", "offers_current", "grades")   # predictions_latest is all live rows
-PEAK_LIMIT_MB = 480
+BIG_TABLES = ("offers", "predictions", "predictions_latest", "offers_current", "grades")
+PEAK_LIMIT_MB = 490      # free tier is 500 MB; the live estimate already overstates the peak
 TEST_SCHEMA = re.compile(r"test_[0-9a-f]{12}")
 
 
@@ -85,14 +85,20 @@ def main():
         while True:
             cur.execute("select pg_database_size(current_database()) / 1e6")
             total = float(cur.fetchone()[0])
-            # live data each compacted copy needs: table size x share of live rows
-            cur.execute("""select relname, pg_total_relation_size(relid) / 1e6
-                                  * n_live_tup / greatest(n_live_tup + n_dead_tup, 1),
-                                  pg_total_relation_size(relid) / 1e6
-                           from pg_stat_user_tables where schemaname = 'public' and relname = any(%s)""",
-                        (list(BIG_TABLES),))
-            todo = sorted((float(live), t, float(size)) for t, live, size in cur.fetchall()
-                          if t not in done and size - live > 5)          # skip if under 5 MB to gain
+            # space each compacted copy needs: table size x share of the file that is row data (+20%
+            # page overhead). Not n_dead_tup: the plain VACUUM above resets it to 0 while the file
+            # stays full of freed space
+            todo = []
+            for t in BIG_TABLES:
+                if t in done:
+                    continue
+                cur.execute(f"select coalesce(sum(pg_column_size(x.*)), 0) / 1e6, pg_relation_size(%s) / 1e6, "
+                            f"pg_total_relation_size(%s) / 1e6 from {t} x", (t, t))
+                data, heap, size = map(float, cur.fetchone())
+                live = size * min(1.0, 1.2 * data / heap) if heap else 0.0
+                if size - live > 5:                                       # skip if under 5 MB to gain
+                    todo.append((live, t, size))
+            todo.sort()
             if not todo:
                 break
             live, t, size = todo[0]
